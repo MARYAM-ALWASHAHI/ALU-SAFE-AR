@@ -1,5 +1,5 @@
 // DOM helpers: screens, modal dialog, toasts and icons.
-import { t } from "./i18n.js?v=4";
+import { t } from "./i18n.js?v=5";
 
 export const $ = (sel) => document.querySelector(sel);
 

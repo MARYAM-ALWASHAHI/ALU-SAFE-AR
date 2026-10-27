@@ -1,13 +1,13 @@
 // The eight missions. Each mission sets up its own objects, objectives and rules through `ctx`
 // (see Game.makeCtx in game.js) and runs its own logic every frame in update().
 // All wording comes from content.js so HSE can review it in one place.
-import * as THREE from "./vendor/three.module.min.js?v=4";
-import * as A from "./assets.js?v=4";
-import { SPOTS, ZONES } from "./world.js?v=4";
-import { MISSION_TEXT, HUNT_SPOTS, HAZARD_CATS, PPE_CHECK, SCORING } from "./content.js?v=4";
-import { t, tx, getLang } from "./i18n.js?v=4";
-import { icon, ppeArt, openModal, closeModal } from "./ui.js?v=4";
-import { sfx } from "./audio.js?v=4";
+import * as THREE from "./vendor/three.module.min.js?v=5";
+import * as A from "./assets.js?v=5";
+import { SPOTS, ZONES } from "./world.js?v=5";
+import { MISSION_TEXT, HUNT_SPOTS, HAZARD_CATS, PPE_CHECK, SCORING } from "./content.js?v=5";
+import { t, tx, getLang } from "./i18n.js?v=5";
+import { icon, ppeArt, openModal, closeModal } from "./ui.js?v=5";
+import { sfx } from "./audio.js?v=5";
 
 const T = MISSION_TEXT;
 const L = (en, ar) => ({ en, ar });

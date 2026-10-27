@@ -1,8 +1,8 @@
 // Boot: capability checks, menus and settings. The 3D code is loaded only after WebGL is confirmed.
-import { t, tx, setLang, getLang, applyI18n } from "./i18n.js?v=4";
-import { $, showScreen, openModal, closeModal, icon } from "./ui.js?v=4";
-import { store } from "./storage.js?v=4";
-import { MISSION_TEXT, MISSION_ORDER } from "./content.js?v=4";
+import { t, tx, setLang, getLang, applyI18n } from "./i18n.js?v=5";
+import { $, showScreen, openModal, closeModal, icon } from "./ui.js?v=5";
+import { store } from "./storage.js?v=5";
+import { MISSION_TEXT, MISSION_ORDER } from "./content.js?v=5";
 
 const settings = store.getSettings();
 if (!settings.quality) settings.quality = matchMedia("(pointer:coarse)").matches ? "medium" : "high";
@@ -60,7 +60,7 @@ function renderMissions() {
 }
 
 async function startMission(id) {
-  const { unlockAudio, setMuted } = await import("./audio.js?v=4");
+  const { unlockAudio, setMuted } = await import("./audio.js?v=5");
   unlockAudio(); setMuted(settings.muted);
   showScreen(null);
   game.startMission(id, settings.difficulty);
@@ -113,7 +113,7 @@ function openSettings() {
   box.querySelectorAll("[data-difficulty]").forEach((b) => b.addEventListener("click", () => { settings.difficulty = b.dataset.difficulty; save(); mark(box, "difficulty", b); }));
   box.querySelectorAll("[data-quality]").forEach((b) => b.addEventListener("click", () => { settings.quality = b.dataset.quality; save(); mark(box, "quality", b); game && game.applyQuality(); }));
   box.querySelector("#btn-reset").addEventListener("click", () => { if (confirm(t("resetQ"))) { store.resetProgress(); closeModal(); } });
-  box.querySelectorAll("[data-muted]").forEach((b) => b.addEventListener("click", async () => { settings.muted = b.dataset.muted === "1"; save(); mark(box, "muted", b); const a = await import("./audio.js?v=4"); a.setMuted(settings.muted); }));
+  box.querySelectorAll("[data-muted]").forEach((b) => b.addEventListener("click", async () => { settings.muted = b.dataset.muted === "1"; save(); mark(box, "muted", b); const a = await import("./audio.js?v=5"); a.setMuted(settings.muted); }));
 }
 function mark(box, name, btn) { box.querySelectorAll(`[data-${name}]`).forEach((x) => x.setAttribute("aria-pressed", x === btn)); }
 
@@ -144,7 +144,7 @@ async function startXR() {
   // requestSession must run inside the tap, so the module was preloaded when the menu opened
   const xr = await xrModule;
   closeModal();
-  import("./audio.js?v=4").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
+  import("./audio.js?v=5").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
   game.mode = "ar";
   showScreen(null);
   xr.startXR({ renderer: game.renderer, game, onExit: () => { game.mode = "menu"; game.resize(); renderHome(); showScreen("s-home"); } })
@@ -153,7 +153,7 @@ async function startXR() {
 
 async function openCamera() {
   let ar;
-  try { ar = await import("./ar.js?v=4"); } catch (err) { showError(err); return; }
+  try { ar = await import("./ar.js?v=5"); } catch (err) { showError(err); return; }
   const canCam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext;
   const framed = window.self !== window.top;
   openModal({
@@ -169,7 +169,7 @@ async function openCamera() {
         // sensor permission must be requested synchronously inside the tap (iOS)
         const sensorAsk = ar.requestSensors();
         closeModal();
-        import("./audio.js?v=4").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
+        import("./audio.js?v=5").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
         showScreen(null);
         game.mode = "ar";
         ar.startCameraMode({ sensorAsk, onExit: () => { game.mode = "menu"; renderHome(); showScreen("s-home"); } })
@@ -188,12 +188,12 @@ async function boot() {
   showScreen("s-loading");
   if (!hasWebGL()) { showScreen("s-unsupported"); return; }
   try {
-    const { Game } = await import("./game.js?v=4");
+    const { Game } = await import("./game.js?v=5");
     game = new Game($("#view"), settings);
     if (new URLSearchParams(location.search).has("test")) window.__game = game; // automated tests only
     game.onExit = (where) => { if (where === "missions") { renderMissions(); showScreen("s-missions"); } else { renderHome(); showScreen("s-home"); } };
     game.onContextLost = () => showError(new Error("WebGL context lost"));
-    xrModule = import("./xr.js?v=4");
+    xrModule = import("./xr.js?v=5");
     wireHome();
     renderHome();
     booted = true;

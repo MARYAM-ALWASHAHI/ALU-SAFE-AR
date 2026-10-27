@@ -1,6 +1,6 @@
 // Procedural canvas textures: concrete, metal, paint, hazard stripes and bilingual signs.
 // Drawn once at start-up, so the game needs no image files.
-import * as THREE from "./vendor/three.module.min.js?v=4";
+import * as THREE from "./vendor/three.module.min.js?v=5";
 
 const cache = new Map();
 let rnd = mulberry(7);

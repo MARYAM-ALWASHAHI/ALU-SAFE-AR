@@ -1,15 +1,15 @@
 // Game engine: renderer, loop, first-person player, interaction, safety rules, HUD and the
 // mission runner. Mission logic lives in missions.js and talks to the engine through `ctx`.
-import * as THREE from "./vendor/three.module.min.js?v=4";
-import { buildWorld, ZONES } from "./world.js?v=4";
-import { disposeTextures } from "./textures.js?v=4";
-import { Player } from "./player.js?v=4";
-import { MISSIONS } from "./missions.js?v=4";
-import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=4";
-import { t, tx, getLang } from "./i18n.js?v=4";
-import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=4";
-import { sfx, startAlarm, stopAlarm } from "./audio.js?v=4";
-import { store } from "./storage.js?v=4";
+import * as THREE from "./vendor/three.module.min.js?v=5";
+import { buildWorld, ZONES } from "./world.js?v=5";
+import { disposeTextures } from "./textures.js?v=5";
+import { Player } from "./player.js?v=5";
+import { MISSIONS } from "./missions.js?v=5";
+import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=5";
+import { t, tx, getLang } from "./i18n.js?v=5";
+import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=5";
+import { sfx, startAlarm, stopAlarm } from "./audio.js?v=5";
+import { store } from "./storage.js?v=5";
 
 const QUALITY = {
   low: { ratio: 1, shadows: false },
@@ -34,6 +34,10 @@ export class Game {
     this.player.bindStick($("#stick"), $("#stick .knob"));
     $("#btn-interact").addEventListener("click", () => this.interact());
     $("#btn-pause").addEventListener("click", () => this.togglePause());
+    const obj = $("#objective");
+    const toggleObj = () => { if (obj.classList.contains("single")) return; const open = obj.classList.toggle("open"); obj.setAttribute("aria-expanded", String(open)); };
+    obj.addEventListener("click", toggleObj);
+    obj.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleObj(); } });
     this.bindTap();
     this.clock = new THREE.Clock();
     this.mode = "menu";            // menu | play | ar
@@ -113,6 +117,7 @@ export class Game {
     showScreen(null);
     $("#hud").hidden = false;
     $("#sample-banner").hidden = CONTENT_META.approved;
+    $("#objective").classList.remove("open"); $("#objective").setAttribute("aria-expanded", "false");
     $("#meter").hidden = true; $("#timer").hidden = true; $("#carry").hidden = true;
     $("#obj-step").textContent = `${MISSION_ORDER.indexOf(id) + 1} · ${tx(this.text.name)}`;
     this.ctx = this.makeCtx();
@@ -377,6 +382,7 @@ export class Game {
     const cur = this.objs.find((o) => !o.done && !o.hidden);
     $("#obj-text").textContent = cur ? cur.text() : "";
     $("#tracker").innerHTML = this.objs.filter((o) => !o.hidden).map((o) => `<span class="seg ${o.done ? "done" : o === cur ? "cur" : ""}"></span>`).join("");
+    $("#objective").classList.toggle("single", this.objs.filter((o) => !o.hidden && !o.optional).length <= 1);
     $("#obj-list").innerHTML = this.objs.filter((o) => !o.hidden && !o.optional).length > 1 ? this.objs.filter((o) => !o.hidden).map((o) => `<li class="${o.done ? "done" : o === cur ? "cur" : ""}">${icon(o.done ? "check" : "dot")}<span>${o.text()}</span></li>`).join("") : "";
     const tg = this.target || (cur && cur.at) || null;
     this.world.setMarker(tg, this.cfg.showMarkers);
