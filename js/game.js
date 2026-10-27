@@ -1,15 +1,15 @@
 // Game engine: renderer, loop, first-person player, interaction, safety rules, HUD and the
 // mission runner. Mission logic lives in missions.js and talks to the engine through `ctx`.
-import * as THREE from "./vendor/three.module.min.js";
-import { buildWorld, ZONES } from "./world.js";
-import { disposeTextures } from "./textures.js";
-import { Player } from "./player.js";
-import { MISSIONS } from "./missions.js";
-import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js";
-import { t, tx, getLang } from "./i18n.js";
-import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js";
-import { sfx, startAlarm, stopAlarm } from "./audio.js";
-import { store } from "./storage.js";
+import * as THREE from "./vendor/three.module.min.js?v=4";
+import { buildWorld, ZONES } from "./world.js?v=4";
+import { disposeTextures } from "./textures.js?v=4";
+import { Player } from "./player.js?v=4";
+import { MISSIONS } from "./missions.js?v=4";
+import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=4";
+import { t, tx, getLang } from "./i18n.js?v=4";
+import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=4";
+import { sfx, startAlarm, stopAlarm } from "./audio.js?v=4";
+import { store } from "./storage.js?v=4";
 
 const QUALITY = {
   low: { ratio: 1, shadows: false },

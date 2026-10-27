@@ -1,9 +1,9 @@
 // Procedural industrial assets. Static pieces go through a Kit, which merges every part that
 // shares a material into one mesh (few draw calls, so phones stay smooth). Moving or
 // interactive pieces are returned as separate groups so they can be animated and picked.
-import * as THREE from "./vendor/three.module.min.js";
-import { mergeGeometries } from "./vendor/BufferGeometryUtils.js";
-import { painted, brushed, treadPlate, grating, stripes, signTex, boardTex } from "./textures.js";
+import * as THREE from "./vendor/three.module.min.js?v=4";
+import { mergeGeometries } from "./vendor/BufferGeometryUtils.js?v=4";
+import { painted, brushed, treadPlate, grating, stripes, signTex, boardTex } from "./textures.js?v=4";
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
 

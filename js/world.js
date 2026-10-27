@@ -2,10 +2,10 @@
 // on phones. Units are metres. The hall runs along x; the potline is on the north side (-z),
 // the crane and vehicle aisle is in the middle, and the pedestrian walkway and maintenance
 // workshop are on the south side (+z).
-import * as THREE from "./vendor/three.module.min.js";
-import { RoomEnvironment } from "./vendor/RoomEnvironment.js";
-import { concrete, stripes, glowSprite, shaftTex, canvasTex } from "./textures.js";
-import * as A from "./assets.js";
+import * as THREE from "./vendor/three.module.min.js?v=4";
+import { RoomEnvironment } from "./vendor/RoomEnvironment.js?v=4";
+import { concrete, stripes, glowSprite, shaftTex, canvasTex } from "./textures.js?v=4";
+import * as A from "./assets.js?v=4";
 
 export const HALL = { minX: -40, maxX: 40, minZ: -15, maxZ: 15, height: 15 };
 export const ZONES = {

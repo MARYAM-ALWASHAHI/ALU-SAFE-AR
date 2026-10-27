@@ -3,11 +3,11 @@
 // around the hazards in it and taps each one to decide what to do. Choice cards are shown with
 // the dom-overlay feature. Only offered when navigator.xr reports immersive-ar support
 // (today: Chrome on ARCore-capable Android phones).
-import * as THREE from "./vendor/three.module.min.js";
-import { AR_FIRE, AR_CRANE, AR_MOLTEN, AR_WALKWAY } from "./content.js";
-import { t, tx, getLang } from "./i18n.js";
-import { icon, openModal, closeModal, modalOpen, toast, flash } from "./ui.js";
-import { sfx } from "./audio.js";
+import * as THREE from "./vendor/three.module.min.js?v=4";
+import { AR_FIRE, AR_CRANE, AR_MOLTEN, AR_WALKWAY } from "./content.js?v=4";
+import { t, tx, getLang } from "./i18n.js?v=4";
+import { icon, openModal, closeModal, modalOpen, toast, flash } from "./ui.js?v=4";
+import { sfx } from "./audio.js?v=4";
 
 export async function startXR({ renderer, game, onExit }) {
   // DOM overlay: the HUD plus the shared modal, toast and flash elements
