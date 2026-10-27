@@ -26,6 +26,7 @@ export const sfx = {
   bad() { tone(220, .35, "sawtooth", .08); tone(170, .4, "sawtooth", .08, .15); },
   horn() { tone(330, .6, "square", .07); tone(392, .6, "square", .05); },
   click() { tone(520, .06, "triangle", .06); },
+  tick() { tone(900, .04, "sine", .035); },
 };
 
 export function startAlarm() {

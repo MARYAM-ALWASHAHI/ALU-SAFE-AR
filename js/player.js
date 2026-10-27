@@ -8,6 +8,9 @@ export class Player {
     this.camera = camera;
     this.dom = dom;
     this.x = 0; this.z = 0; this.yaw = 0; this.pitch = 0;
+    this.feet = 0; this.eyeY = EYE_HEIGHT;   // feet height (platforms, stairs) and smoothed eye height
+    this.moved = 0;                          // distance walked, used by missions
+    this.speedScale = 1;
     this.enabled = false;
     this.keys = new Set();
     this.stick = { x: 0, y: 0, id: null, ox: 0, oy: 0 };
@@ -17,7 +20,7 @@ export class Player {
     this._bind();
   }
 
-  place(x, z, yaw) { this.x = x; this.z = z; this.yaw = yaw; this.pitch = -0.05; this._apply(); }
+  place(x, z, yaw, feet = 0) { this.x = x; this.z = z; this.yaw = yaw; this.pitch = -0.05; this.feet = feet; this.eyeY = feet + EYE_HEIGHT; this._apply(); }
 
   _bind() {
     addEventListener("keydown", (e) => {
@@ -94,8 +97,9 @@ export class Player {
     this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch - dy));
   }
 
-  update(dt, colliders) {
-    if (!this.enabled) { this._apply(); return; }
+  update(dt, colliders, floorAt) {
+    this._floorAt = floorAt;
+    if (!this.enabled) { this._apply(dt); return; }
     const k = this.keys;
     let f = 0, s = 0;
     if (k.has("KeyW") || k.has("ArrowUp")) f += 1;
@@ -105,27 +109,38 @@ export class Player {
     f -= this.stick.y; s += this.stick.x;
     const mag = Math.min(1, Math.hypot(f, s));
     if (mag > 0.05) {
-      const speed = (k.has("ShiftLeft") || k.has("ShiftRight") || Math.hypot(this.stick.x, this.stick.y) > .92 ? RUN : WALK) * mag;
+      const speed = (k.has("ShiftLeft") || k.has("ShiftRight") || Math.hypot(this.stick.x, this.stick.y) > .92 ? RUN : WALK) * mag * this.speedScale;
       const len = Math.hypot(f, s); f /= len; s /= len;
       const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
       const vx = (-sin * f + cos * s) * speed * dt;
       const vz = (-cos * f - sin * s) * speed * dt;
+      const x0 = this.x, z0 = this.z;
       this._tryMove(vx, 0, colliders);
       this._tryMove(0, vz, colliders);
+      this.moved += Math.hypot(this.x - x0, this.z - z0);
     }
-    this._apply();
+    this._apply(dt);
   }
 
+  // Colliders carry a bottom and top height, so railings on a platform do not block the
+  // floor below and the platform deck does not block someone already standing on it.
   _tryMove(dx, dz, colliders) {
     const nx = this.x + dx, nz = this.z + dz;
+    const nf = this._floorAt ? this._floorAt(nx, nz) : 0;
+    if (nf - this.feet > 0.45) return;
     for (const c of colliders) {
-      if (nx > c.minX - RADIUS && nx < c.maxX + RADIUS && nz > c.minZ - RADIUS && nz < c.maxZ + RADIUS) return;
+      if (nx > c.minX - RADIUS && nx < c.maxX + RADIUS && nz > c.minZ - RADIUS && nz < c.maxZ + RADIUS) {
+        const top = c.top ?? 99, bottom = c.bottom ?? 0;
+        if (this.feet < top - 0.3 && this.feet + 1.8 > bottom) return;
+      }
     }
-    this.x = nx; this.z = nz;
+    this.x = nx; this.z = nz; this.feet = nf;
   }
 
-  _apply() {
-    this.camera.position.set(this.x, EYE_HEIGHT, this.z);
+  _apply(dt = 0) {
+    const target = this.feet + EYE_HEIGHT;
+    this.eyeY += (target - this.eyeY) * Math.min(1, dt * 12 || 1);
+    this.camera.position.set(this.x, this.eyeY, this.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
   }
 }

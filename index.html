@@ -62,8 +62,22 @@
   </div>
 </section>
 
-<!-- results -->
-<section class="screen home" id="s-results" hidden><div class="home-card" id="results"></div></section>
+<!-- mission select -->
+<section class="screen home" id="s-missions" hidden>
+  <div class="home-card wide-card">
+    <header class="ms-head">
+      <button class="chip" id="ms-back"><svg class="ico flip-rtl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span data-i18n="back"></span></button>
+      <div><h2 data-i18n="missionsT"></h2><p class="note" id="ms-sub"></p></div>
+    </header>
+    <div class="seg-ctl" role="group" id="ms-diff">
+      <button data-diff="easy" data-i18n="easy"></button>
+      <button data-diff="normal" data-i18n="normal"></button>
+      <button data-diff="hard" data-i18n="hard"></button>
+    </div>
+    <ol class="ms-grid" id="ms-grid"></ol>
+    <p class="note" data-i18n="sample"></p>
+  </div>
+</section>
 
 <!-- in-game HUD -->
 <div id="hud" hidden>
@@ -72,18 +86,23 @@
     <div class="objective" aria-live="polite">
       <div class="obj-head"><span id="obj-step"></span><div id="tracker"></div></div>
       <div id="obj-text"></div>
+      <ul id="obj-list"></ul>
     </div>
     <div class="score-pill"><span data-i18n="score"></span><b id="score-val">0</b></div>
   </div>
   <div id="timer" hidden><span data-i18n="timeLeft"></span><b id="timer-val">0:00</b></div>
   <div id="compass" hidden><svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 10h-4.5v9h-5v-9H5z" fill="currentColor"/></svg><span id="compass-d"></span></div>
+  <div id="meter" hidden><span></span><div class="bar"><i></i></div></div>
+  <div id="carry" hidden><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5c0 3.6-2.4 6.5-6 6.5-2.5 0-4-1.2-5.2-3.2L4.5 13.5a1.5 1.5 0 0 1 2.4-1.8L9 14"/></svg><span></span></div>
   <div id="reticle"></div>
+  <div id="focus-tag" hidden></div>
   <div id="stick"><div class="knob"></div></div>
   <button id="btn-interact" hidden><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5c0 3.6-2.4 6.5-6 6.5-2.5 0-4-1.2-5.2-3.2L4.5 13.5a1.5 1.5 0 0 1 2.4-1.8L9 14"/></svg><span data-i18n="interact"></span></button>
   <div id="hint-e" hidden><kbd>E</kbd><span data-i18n="interact"></span></div>
   <div id="sample-banner" data-i18n="sample"></div>
 </div>
 
+<div id="visor-fx" aria-hidden="true"></div>
 <div id="toast" role="status"></div>
 <div id="flash"></div>
 <div id="modal" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title"></div></div>

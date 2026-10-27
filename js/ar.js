@@ -3,7 +3,7 @@
 // sensors and a simple step counter moves you closer. It does not detect floors or real
 // objects, and the UI says so.
 import * as THREE from "./vendor/three.module.min.js";
-import { MISSIONS, AR_FIRE, AR_CRANE, SCORING } from "./content.js";
+import { AR_FIRE, AR_CRANE, AR_MOLTEN, AR_WALKWAY } from "./content.js";
 import { t, tx, getLang } from "./i18n.js";
 import { icon, openModal, closeModal, modalOpen, toast, flash } from "./ui.js";
 import { sfx } from "./audio.js";
@@ -78,7 +78,7 @@ export async function startCameraMode({ onExit, sensorAsk }) {
   addEventListener("resize", resize); resize();
 
   // ---------- hazards ----------
-  const set = [AR_FIRE, MISSIONS.find((m) => m.id === "molten"), MISSIONS.find((m) => m.id === "house"), AR_CRANE];
+  const set = [AR_FIRE, AR_MOLTEN, AR_WALKWAY, AR_CRANE];
   const angles = [0, 95, 185, 270].map((a) => a + (Math.random() * 20 - 10));
   const hazards = set.map((content, i) => {
     const model = buildModel(content.id);
@@ -217,7 +217,7 @@ export async function startCameraMode({ onExit, sensorAsk }) {
     const c = h.content;
     if (o.ok) {
       h.done = true;
-      h.score = h.tries <= 1 ? SCORING.perMission : h.tries === 2 ? SCORING.secondTry : SCORING.laterTry;
+      h.score = h.tries <= 1 ? 100 : h.tries === 2 ? 50 : 20;
       score += h.score; updateHud();
       openModal({
         tone: "good", tag: `${icon("check")} ${t("rightT")}`, title: tx(c.name),
