@@ -135,3 +135,41 @@ export const VIOLATIONS = {
     r: { en: "Smoke and heat spread fast. Keep well away from the fire and use another route.", ar: "الدخان والحرارة ينتشران بسرعة. ابتعد عن النار واسلك طريقاً آخر." },
   },
 };
+
+// Camera mode: hazards placed around the trainee over the live camera view.
+// Molten metal and the blocked walkway reuse the mission content above.
+export const AR_FIRE = {
+  id: "fire",
+  name: { en: "Fire near equipment", ar: "حريق قرب المعدات" },
+  q: { en: "Smoke and flames are coming from a bin next to equipment, and nobody has raised the alarm.", ar: "يخرج دخان ولهب من سلة بجانب المعدات، ولم يُطلق أحد الإنذار." },
+  opts: [
+    { ok: true, fx: "good",
+      t: { en: "Raise the alarm, warn others and leave by the safe route", ar: "أطلق الإنذار، وأنبّه الآخرين، وأغادر عبر الطريق الآمن" },
+      r: { en: "The alarm brought the trained response team and everyone left safely.", ar: "وصل فريق الاستجابة المدرّب بسبب الإنذار، وخرج الجميع بأمان." } },
+    { fx: "smoke",
+      t: { en: "Go closer to see what is burning", ar: "أقترب لأرى ما الذي يحترق" },
+      r: { en: "The fire grew and smoke filled the area around you. Never approach a fire to look.", ar: "كبرت النار وامتلأ المكان حولك بالدخان. لا تقترب من حريق لتنظر." } },
+    { fx: "smoke",
+      t: { en: "Try to put it out myself without telling anyone", ar: "أحاول إطفاءها بنفسي دون أن أخبر أحداً" },
+      r: { en: "The fire grew and nobody knew you needed help. Only trained, authorised people fight fires, after the alarm.", ar: "كبرت النار ولم يعرف أحد أنك تحتاج مساعدة. الإطفاء للمدرّبين والمخوّلين فقط وبعد إطلاق الإنذار." } },
+  ],
+  learn: { en: "Alarm and warn first, then leave by the safe route. Firefighting is only for trained, authorised people.", ar: "الإنذار والتنبيه أولاً، ثم المغادرة عبر الطريق الآمن. الإطفاء للمدرّبين والمخوّلين فقط." },
+};
+
+export const AR_CRANE = {
+  id: "crane",
+  name: { en: "Suspended load", ar: "حمل معلّق" },
+  q: { en: "A crane is holding a heavy load above the walkway you are about to use.", ar: "رافعة تحمل حملاً ثقيلاً فوق الممر الذي ستسلكه." },
+  opts: [
+    { fx: "fall",
+      t: { en: "Walk quickly underneath before it moves", ar: "أمرّ من تحته بسرعة قبل أن يتحرك" },
+      r: { en: "The load slipped and landed right where you were heading. Never walk under a suspended load.", ar: "انزلق الحمل وسقط في المكان الذي كنت تتجه إليه. لا تمشِ أبداً تحت حمل معلّق." } },
+    { ok: true, fx: "good",
+      t: { en: "Stay outside the load’s path and wait until it is set down", ar: "أبقى خارج مسار الحمل وأنتظر حتى يُنزَل" },
+      r: { en: "The load was lowered safely and you crossed once the path was clear.", ar: "أُنزل الحمل بأمان وعبرتَ بعد أن أصبح الطريق خالياً." } },
+    { fx: "fall",
+      t: { en: "Wave to the operator to hold it so I can pass underneath", ar: "أشير للمشغّل ليوقفه حتى أمرّ من تحته" },
+      r: { en: "Even a stopped load can slip or swing. The load dropped. Go around, or wait until it is set down.", ar: "حتى الحمل المتوقف قد ينزلق أو يتأرجح، وقد سقط. التفّ حوله أو انتظر حتى يُنزَل." } },
+  ],
+  learn: { en: "Never stand or walk under a suspended load. Keep clear of its path and wait.", ar: "لا تقف ولا تمشِ تحت حمل معلّق. ابتعد عن مساره وانتظر." },
+};

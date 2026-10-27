@@ -5,8 +5,8 @@ It does not represent any real company, facility or procedure. All training cont
 sample content and must be reviewed and approved by qualified HSE personnel before real use.
 
 Status: Phase 1 (interface) and Phase 2 (3D environment and missions) are built and tested,
-including scoring, progress tracking and results. Phase 4 (AR) has a support check and an
-honest explanation, but no AR gameplay yet.
+including scoring, progress tracking and results. A camera mode for iPhone, iPad and Android
+shows hazards over the live camera (see below). Surface-detecting AR is not built yet.
 
 ## What is in the game
 
@@ -40,7 +40,8 @@ fastest crane, 80 s). Graphics quality: Low, Medium or High (High adds shadows).
 ```
 index.html            page shell and all screens
 css/app.css           styles, responsive layout, RTL support
-js/main.js            boot, WebGL check, menus, settings, AR check, results
+js/main.js            boot, WebGL check, menus, settings, results
+js/ar.js              camera mode: live camera, orientation sensors, step counter, 4 hazards
 js/game.js            game loop, missions, rules, scoring, HUD
 js/world.js           procedural 3D potroom (no external models or textures)
 js/player.js          first-person movement, collisions, keyboard, mouse and touch input
@@ -105,26 +106,41 @@ Tested in Chromium (Playwright, software WebGL) with device emulation for a desk
 script played the full game: joystick or keyboard movement, drag-to-look, PPE selection with a
 wrong attempt, wrong and right answers for every choice mission, a crane violation, a restricted
 area violation, the emergency choice, the evacuation, the results screen, return to the menu, and
-the How to play, Settings and AR dialogs. No script errors and no horizontal scrolling were found.
+the How to play, Settings and AR dialogs. Camera mode was tested on the iPhone size with a
+simulated camera and simulated orientation events: camera feed, walking closer, tapping a hazard,
+a wrong and a right choice, turning to the next hazard and exiting. No script errors and no
+horizontal scrolling were found.
 
 **Not yet tested on physical devices.** Emulation checks layout, touch input and logic, but not
 real Safari, real GPU performance, or real WebXR. Before a pilot, test on at least one real iPhone,
 iPad, Android phone, Windows PC and Mac.
 
-## AR: limitations and requirements
+## Camera mode and AR: what works where
 
-The **AR mode** button checks `navigator.xr.isSessionSupported("immersive-ar")` and explains the
-result. It does not start an AR session yet, and the game never calls a 3D scene "AR".
+**Camera mode** (the "AR mode" button on the home screen) works in Safari on iPhone and iPad,
+and in Chrome on Android:
 
-Real AR in a later phase needs:
+- The rear camera shows live behind four 3D hazards placed around you: a fire, molten metal near
+  water, a hose across the walkway, and a suspended crane load.
+- The view follows the device's orientation sensors. Each step counted by the motion sensor, or
+  each press of **Step forward**, moves you closer to the hazard in front of you.
+- When you are close, tap the hazard and choose an action. Wrong choices show what happens (the
+  fire grows, steam bursts, the load drops), then you try again.
+- Requirements: the page must be opened over HTTPS (for example the GitHub Pages link), and the
+  trainee must allow camera and motion access. Inside the claude.ai preview the camera is blocked,
+  so the mode falls back to a virtual floor and drag-to-look.
 
-- An Android phone with Chrome and Google Play Services for AR (ARCore), opened over HTTPS and not inside an iframe or preview window.
-- WebXR `immersive-ar` with the `hit-test` feature to detect floors and tables, and `dom-overlay` for the choice cards.
-- iPhone and iPad: Safari does not support WebXR AR. Options there are a native app (ARKit), Apple Quick Look with USDZ models (view only, no game logic), or a commercial WebAR engine that uses its own tracking.
+This is labelled **camera simulation** in the game, not AR. It does not detect floors, walls or
+real objects; hazards stay fixed in a direction around you, and distance comes from steps, not tracking.
+
+**True AR with surface detection** (WebXR `immersive-ar` with `hit-test`) currently works only in
+Chrome on ARCore-supported Android phones. Safari on iPhone and iPad has no WebXR AR. To get
+surface-anchored AR on Apple devices, the options are a native app (ARKit), Apple Quick Look with
+USDZ models (view only, no game logic), or a commercial WebAR engine with its own tracking.
 
 ## Roadmap
 
-**Phase 4: AR mission (next).** "Place a hazard": the trainee scans a floor, places a virtual
+**Phase 4b: surface-anchored AR (next).** "Place a hazard": the trainee scans a floor, places a virtual
 crucible, crane load or spill on it with WebXR hit-test, walks around it and answers the same
 choice cards. Android Chrome first; a clear fallback to the 3D game everywhere else.
 

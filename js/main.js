@@ -88,16 +88,32 @@ function openSettings() {
 function mark(box, name, btn) { box.querySelectorAll(`[data-${name}]`).forEach((x) => x.setAttribute("aria-pressed", x === btn)); }
 
 async function openAR() {
-  openModal({ title: t("arMode"), body: `<p class="muted">${t("arChecking")}</p>` });
-  let supported = false;
-  try { supported = !!(navigator.xr && await navigator.xr.isSessionSupported("immersive-ar")); } catch (_) { supported = false; }
+  openModal({ title: t("camT"), body: `<p class="muted">${t("arChecking")}</p>` });
+  let ar;
+  try { ar = await import("./ar.js"); } catch (err) { showError(err); return; }
+  const canCam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext;
   const framed = window.self !== window.top;
   openModal({
-    tone: supported ? "good" : "",
     tag: icon("cube") + " " + t("arMode"),
-    title: supported ? t("arYesT") : t("arNoT"),
-    body: `<p>${supported ? t("arYes") : t("arNo")}</p>${framed ? `<p class="note">${t("arFrame")}</p>` : ""}`,
-    actions: [{ label: t("close"), primary: true, onClick: () => closeModal() }],
+    title: t("camT"),
+    body: `<p>${t("camIntro")}</p>
+      <div class="learn"><b>${t("remember")}</b><p>${t("camSafety")}</p></div>
+      <p class="note">${t("camHonest")}</p>
+      <p class="note">${t("camPerm")}</p>
+      ${!canCam || framed ? `<p class="note">${t("camNoCam")}</p>` : ""}`,
+    actions: [
+      { label: t("camStart"), icon: "play", primary: true, onClick: () => {
+        // sensor permission must be requested synchronously inside the tap (iOS)
+        const sensorAsk = ar.requestSensors();
+        closeModal();
+        import("./audio.js").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
+        showScreen(null);
+        game.mode = "ar";
+        ar.startCameraMode({ sensorAsk, onExit: () => { game.mode = "menu"; renderHome(); showScreen("s-home"); } })
+          .catch((err) => { console.error(err); game.mode = "menu"; showScreen("s-home"); });
+      } },
+      { label: t("close"), onClick: () => closeModal() },
+    ],
   });
 }
 

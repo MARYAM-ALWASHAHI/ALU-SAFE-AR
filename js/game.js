@@ -127,6 +127,7 @@ export class Game {
   // ---------------- per-frame ----------------
   frame() {
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    if (this.mode === "ar") return;   // camera mode renders on its own canvas
     if (this.mode === "menu" || this.mode === "done") {
       // slow fly-through behind the menu
       const tt = performance.now() / 1000 * 0.06;
