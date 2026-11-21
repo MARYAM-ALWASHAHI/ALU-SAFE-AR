@@ -2,7 +2,7 @@
 // HDR scene buffer -> two-level bloom -> filmic tone mapping, colour grade, vignette and grain.
 // It also drives the incident-replay look (desaturation, red danger edge, rewind lines).
 // On "Low" quality it is switched off and the scene renders straight to the screen.
-import * as THREE from "./vendor/three.module.min.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
 
 const VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 

@@ -2,10 +2,10 @@
 // on phones. Units are metres. The hall runs along x; the potline is on the north side (-z),
 // the crane and vehicle aisle is in the middle, and the pedestrian walkway and maintenance
 // workshop are on the south side (+z).
-import * as THREE from "./vendor/three.module.min.js?v=6";
-import { RoomEnvironment } from "./vendor/RoomEnvironment.js?v=6";
-import { concrete, stripes, glowSprite, shaftTex, canvasTex } from "./textures.js?v=6";
-import * as A from "./assets.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
+import { RoomEnvironment } from "./vendor/RoomEnvironment.js?v=7";
+import { concrete, stripes, glowSprite, shaftTex, canvasTex } from "./textures.js?v=7";
+import * as A from "./assets.js?v=7";
 
 export const HALL = { minX: -40, maxX: 40, minZ: -15, maxZ: 15, height: 15 };
 export const ZONES = {
@@ -70,12 +70,12 @@ export function buildWorld(scene, opts) {
   scene.add(floor);
   const paint = (w, d, x, z, mat, y = .012) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); p.rotation.x = -Math.PI / 2; p.position.set(x, y, z); p.receiveShadow = opts.shadows; scene.add(p); return p; };
   const flat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: .75, metalness: 0, envMapIntensity: .3, ...o });
-  const yellow = flat(0xe8b400, { roughness: .6 });
+  const yellow = flat(0xffc400, { roughness: .55, emissive: 0x3a2a00 });
   const walkMat = flat(0x2f7a52, { roughness: .8 });
   paint(50, 6, -15, 9, walkMat);                             // pedestrian walkway (west)
   paint(30, 2, 25, 7, walkMat);                              // narrower path past the workshop
-  paint(50, .18, -15, 12, yellow); paint(80, .18, 0, 6, yellow); paint(30, .18, 25, 8, yellow);
-  paint(80, .18, 0, -4.6, yellow); paint(80, .18, 0, 4.6, yellow);     // crane / vehicle aisle
+  paint(50, .4, -15, 12, yellow); paint(80, .4, 0, 6, yellow); paint(30, .4, 25, 8, yellow);
+  paint(80, .4, 0, -4.6, yellow); paint(80, .4, 0, 4.6, yellow);     // crane / vehicle aisle
   paint(27.6, 6.2, 25.8, 11.5, flat(0x3c4a57, { roughness: .85 }), .008);   // workshop floor
   const bay = ZONES.bay;
   paint(bay.maxX - bay.minX, bay.maxZ - bay.minZ, (bay.minX + bay.maxX) / 2, (bay.minZ + bay.maxZ) / 2, flat(0xffffff, { map: stripes("#d9a100", "#1d1d1d", [6, 2]) }));

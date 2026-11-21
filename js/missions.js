@@ -1,15 +1,15 @@
 // The eight missions. Each mission sets up its own objects, objectives and rules through `ctx`
 // (see Game.makeCtx in game.js) and runs its own logic every frame in update().
 // All wording comes from content.js so HSE can review it in one place.
-import * as THREE from "./vendor/three.module.min.js?v=6";
-import * as A from "./assets.js?v=6";
-import { SPOTS, ZONES } from "./world.js?v=6";
-import { MISSION_TEXT, HUNT_SPOTS, HAZARD_CATS, PPE_CHECK, SCORING } from "./content.js?v=6";
-import { t, tx, getLang } from "./i18n.js?v=6";
-import { icon, ppeArt, openModal, closeModal } from "./ui.js?v=6";
-import { sfx } from "./audio.js?v=6";
-import { walker, animateWalk } from "./npc.js?v=6";
-import { glowSprite } from "./textures.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
+import * as A from "./assets.js?v=7";
+import { SPOTS, ZONES } from "./world.js?v=7";
+import { MISSION_TEXT, HUNT_SPOTS, HAZARD_CATS, PPE_CHECK, SCORING } from "./content.js?v=7";
+import { t, tx, getLang } from "./i18n.js?v=7";
+import { icon, ppeArt, openModal, closeModal } from "./ui.js?v=7";
+import { sfx } from "./audio.js?v=7";
+import { walker, animateWalk } from "./npc.js?v=7";
+import { glowSprite } from "./textures.js?v=7";
 
 const T = MISSION_TEXT;
 const L = (en, ar) => ({ en, ar });

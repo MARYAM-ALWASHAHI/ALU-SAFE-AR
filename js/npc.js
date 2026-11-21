@@ -1,7 +1,7 @@
 // Colleagues who walk the walkways, so the hall feels like a working plant. They stay on the
 // green walkway, give way to the trainee, and walk out of the nearest exit when the alarm sounds.
-import * as THREE from "./vendor/three.module.min.js?v=6";
-import { gbox, gcyl } from "./assets.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
+import { gbox, gcyl } from "./assets.js?v=7";
 
 // Worker with hinged arms and legs for a walk cycle.
 export function walker(M, { helmet = 0xffffff, vest = null } = {}) {
