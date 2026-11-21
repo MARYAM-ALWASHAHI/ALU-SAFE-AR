@@ -1,8 +1,8 @@
 // Boot: capability checks, menus and settings. The 3D code is loaded only after WebGL is confirmed.
-import { t, tx, setLang, getLang, applyI18n } from "./i18n.js?v=5";
-import { $, showScreen, openModal, closeModal, icon } from "./ui.js?v=5";
-import { store } from "./storage.js?v=5";
-import { MISSION_TEXT, MISSION_ORDER } from "./content.js?v=5";
+import { t, tx, setLang, getLang, applyI18n } from "./i18n.js?v=6";
+import { $, showScreen, openModal, closeModal, icon } from "./ui.js?v=6";
+import { store } from "./storage.js?v=6";
+import { MISSION_TEXT, MISSION_ORDER, COMPETENCIES, RANKS, VIOLATIONS } from "./content.js?v=6";
 
 const settings = store.getSettings();
 if (!settings.quality) settings.quality = matchMedia("(pointer:coarse)").matches ? "medium" : "high";
@@ -35,6 +35,94 @@ function renderHome() {
   const done = MISSION_ORDER.filter((id) => prog[id] && prog[id].done).length;
   $("#best").textContent = done ? t("missionsSub", { done, total: MISSION_ORDER.length, stars: MISSION_ORDER.reduce((s, id) => s + ((prog[id] && prog[id].stars) || 0), 0) }) : "";
   $("#lang-toggle span").textContent = getLang() === "ar" ? "English" : "العربية";
+  const r = readiness();
+  $("#readiness-mini").textContent = r.played ? `${r.overall}%` : "";
+}
+
+// ---------------- safety readiness profile ----------------
+function readiness() {
+  const prog = store.getProgress();
+  const comps = COMPETENCIES.map((c) => {
+    const played = c.missions.filter((id) => prog[id] && prog[id].done);
+    const v = played.length ? Math.round(played.reduce((s, id) => s + prog[id].best, 0) / played.length) : null;
+    return { ...c, v };
+  });
+  const overall = Math.round(comps.reduce((s, c) => s + (c.v || 0), 0) / comps.length);
+  const done = MISSION_ORDER.filter((id) => prog[id] && prog[id].done).length;
+  const stars = MISSION_ORDER.reduce((s, id) => s + ((prog[id] && prog[id].stars) || 0), 0);
+  const rank = RANKS.filter((r) => overall >= r.min).pop();
+  return { comps, overall, done, stars, rank, played: comps.some((c) => c.v != null), prog };
+}
+
+function radarSvg(comps) {
+  const cx = 160, cy = 150, R = 92, n = comps.length;
+  const pt = (i, r) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
+  const ring = (k) => comps.map((_, i) => pt(i, R * k).map((v) => v.toFixed(1)).join(",")).join(" ");
+  const poly = comps.map((c, i) => pt(i, R * Math.max(.04, (c.v || 0) / 100)).map((v) => v.toFixed(1)).join(",")).join(" ");
+  const labels = comps.map((c, i) => {
+    const [x, y] = pt(i, R + 16), anchor = Math.abs(x - cx) < 8 ? "middle" : x > cx ? "start" : "end";
+    return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${anchor}">${tx(c)}</text>`;
+  }).join("");
+  return `<svg class="pf-radar" viewBox="-70 0 460 300" role="img" aria-label="${t("competencies")}">
+    ${[.25, .5, .75, 1].map((k) => `<polygon points="${ring(k)}" fill="none" stroke="rgba(192,198,206,.22)" stroke-width="1"/>`).join("")}
+    ${comps.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(192,198,206,.18)"/>`; }).join("")}
+    <polygon points="${poly}" fill="rgba(0,194,194,.28)" stroke="#00c2c2" stroke-width="2.2" stroke-linejoin="round"/>
+    ${comps.map((c, i) => { const [x, y] = pt(i, R * Math.max(.04, (c.v || 0) / 100)); return c.v != null ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#00c2c2"/>` : ""; }).join("")}
+    ${labels}</svg>`;
+}
+
+function renderProfile() {
+  const r = readiness(), st = store.getStats();
+  const weak = r.comps.filter((c) => c.v != null).sort((a, b) => a.v - b.v)[0];
+  const next = MISSION_ORDER.find((id) => !(r.prog[id] && r.prog[id].done));
+  const kinds = Object.entries(st.kinds || {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const allDone = r.done === MISSION_ORDER.length;
+  $("#pf-body").innerHTML = `
+    <div class="pf-top">
+      ${radarSvg(r.comps)}
+      <div class="pf-score">
+        <span class="field">${t("readiness")}</span>
+        <div class="big">${r.overall}<small>%</small></div>
+        <span class="pf-rank">${tx(r.rank)}</span>
+        <p class="note">${t("missionsSub", { done: r.done, total: MISSION_ORDER.length, stars: r.stars })}</p>
+        ${weak && weak.v < 90 ? `<p class="note">${t("weakest")}: <b>${tx(weak)}</b></p>` : ""}
+      </div>
+    </div>
+    <div class="pf-section"><h3>${t("competencies")}</h3><ul class="pf-bars">
+      ${r.comps.map((c) => `<li class="${c.v == null ? "none" : c.v < 70 ? "weak" : ""}"><span>${tx(c)}</span><b>${c.v == null ? `<small class="muted">${t("notPlayed")}</small>` : c.v + "%"}</b><div class="bar"><i style="width:${c.v || 0}%"></i></div></li>`).join("")}
+    </ul></div>
+    <div class="pf-section"><div class="pf-stats">
+      <div><span>${t("runs")}</span><b>${st.runs}</b></div>
+      <div><span>${t("mistakesTotal")}</span><b>${st.mistakes}</b></div>
+      <div><span>${t("timeTotal")}</span><b>${Math.round(st.seconds / 60)}′</b></div>
+    </div></div>
+    <div class="pf-section"><h3>${t("topMistakes")}</h3>
+      ${kinds.length ? `<ul class="loglist">${kinds.map(([k, n]) => `<li><span>${tx(VIOLATIONS[k] && VIOLATIONS[k].t) || k}</span><b>×${n}</b></li>`).join("")}</ul>` : `<p class="note">${t("noRuleBreaks")}</p>`}
+    </div>
+    <div class="pf-actions">
+      ${next ? `<button class="btn primary" id="pf-next">${icon("play")}<span>${t("playNext")}: ${tx(MISSION_TEXT[next].name)}</span></button>` : ""}
+      <h3 style="margin:8px 0 0">${t("certTitle")}</h3>
+      ${allDone ? `<label class="field" for="pf-name">${t("certName")}</label><input class="pf-name" id="pf-name" maxlength="60" placeholder="${t("certNameP")}" value="${escapeHtml(store.getName())}">
+        <button class="btn secondary" id="pf-cert">${icon("shield")}<span>${t("certPrint")}</span></button>` : `<p class="note">${t("certLocked", { n: MISSION_ORDER.length })}</p>`}
+    </div>`;
+  const nb = $("#pf-next"); if (nb) nb.addEventListener("click", () => startMission(next));
+  const cb = $("#pf-cert"); if (cb) cb.addEventListener("click", () => { store.setName($("#pf-name").value.trim()); printCert(r); });
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]); }
+
+function printCert(r) {
+  const name = escapeHtml(store.getName() || "—");
+  const date = new Date().toLocaleDateString(getLang() === "ar" ? "ar-OM" : "en-GB", { year: "numeric", month: "long", day: "numeric" });
+  $("#cert").innerHTML = `<div class="cert" dir="${getLang() === "ar" ? "rtl" : "ltr"}"><div class="frame"></div><div class="inner">
+    <svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 3l18 10.5v21L24 45 6 34.5v-21z" fill="#0b2d4a" stroke="#00a8a8" stroke-width="2.5"/><path d="M15 31l9-16 9 16z" fill="none" stroke="#c0c6ce" stroke-width="2.5" stroke-linejoin="round"/><path d="M24 22v4.5M24 28.8v.2" stroke="#f2a900" stroke-width="2.6" stroke-linecap="round"/></svg>
+    <h1>ALU-SAFE <span>AR</span></h1>
+    <p style="font-size:16pt;font-weight:700;letter-spacing:.04em">${t("certTitle")}</p>
+    <div class="who">${name}</div>
+    <p>${t("certBody", { n: MISSION_ORDER.length })}</p>
+    <div class="meta"><div>${t("certScore")}<b>${r.overall}%</b></div><div>${t("certStars")}<b>${r.stars} / ${MISSION_ORDER.length * 3}</b></div><div>${t("certDate")}<b>${date}</b></div></div>
+    <p class="disc">${t("certDisc")}</p></div></div>`;
+  setTimeout(() => window.print(), 60);
 }
 
 // Mission select: locked, unlocked and completed states, saved in this browser.
@@ -60,7 +148,7 @@ function renderMissions() {
 }
 
 async function startMission(id) {
-  const { unlockAudio, setMuted } = await import("./audio.js?v=5");
+  const { unlockAudio, setMuted } = await import("./audio.js?v=6");
   unlockAudio(); setMuted(settings.muted);
   showScreen(null);
   game.startMission(id, settings.difficulty);
@@ -75,6 +163,8 @@ function wireHome() {
   $("#btn-howto").addEventListener("click", openHowTo);
   $("#btn-settings").addEventListener("click", openSettings);
   $("#btn-ar").addEventListener("click", openAR);
+  $("#btn-profile").addEventListener("click", () => { renderProfile(); showScreen("s-profile"); });
+  $("#pf-back").addEventListener("click", () => { renderHome(); showScreen("s-home"); });
 }
 
 function openHowTo() {
@@ -84,6 +174,8 @@ function openHowTo() {
       <li>${icon("shield")}<span>${t("howGoal")}</span></li>
       <li>${icon("warn")}<span>${t("howRules")}</span></li>
       <li>${icon("help")}<span>${t("howChoice")}</span></li>
+      <li>${icon("restart")}<span>${t("howReplay")}</span></li>
+      <li>${icon("sound")}<span>${t("howSense")}</span></li>
       <li>${icon("hand")}<span>${t("howTouch")}</span></li>
       <li>${icon("gear")}<span>${t("howDesk")}</span></li></ul>`,
     actions: [{ label: t("close"), primary: true, onClick: () => closeModal() }],
@@ -103,6 +195,9 @@ function openSettings() {
       <label class="field">${t("difficulty")}</label>${seg("difficulty", ["easy", "normal", "hard"], settings.difficulty)}
       <label class="field">${t("quality")}</label>${seg("quality", ["low", "medium", "high"], settings.quality)}
       <p class="note">${t("qualityD")}</p>
+      <label class="field">${t("replaySet")}</label>${toggle("replay")}
+      <label class="field">${t("senseSet")}</label>${toggle("sense")}
+      <label class="field">${t("cineSet")}</label>${toggle("cinematics")}
       <label class="field">${t("audio")}</label>
       <div class="seg-ctl" role="group"><button data-muted="0" aria-pressed="${!settings.muted}">${icon("sound")}</button><button data-muted="1" aria-pressed="${settings.muted}">${icon("mute")}</button></div>
       <button class="btn secondary small" id="btn-reset">${icon("restart")}<span>${t("resetProgress")}</span></button>`,
@@ -112,8 +207,13 @@ function openSettings() {
   box.querySelectorAll("[data-language]").forEach((b) => b.addEventListener("click", () => { settings.lang = b.dataset.language; setLang(settings.lang); save(); closeModal(); openSettings(); }));
   box.querySelectorAll("[data-difficulty]").forEach((b) => b.addEventListener("click", () => { settings.difficulty = b.dataset.difficulty; save(); mark(box, "difficulty", b); }));
   box.querySelectorAll("[data-quality]").forEach((b) => b.addEventListener("click", () => { settings.quality = b.dataset.quality; save(); mark(box, "quality", b); game && game.applyQuality(); }));
+  box.querySelectorAll("[data-tg]").forEach((b) => b.addEventListener("click", () => { settings[b.dataset.tg] = b.dataset.v === "1"; save(); box.querySelectorAll(`[data-tg="${b.dataset.tg}"]`).forEach((x) => x.setAttribute("aria-pressed", x === b)); }));
   box.querySelector("#btn-reset").addEventListener("click", () => { if (confirm(t("resetQ"))) { store.resetProgress(); closeModal(); } });
-  box.querySelectorAll("[data-muted]").forEach((b) => b.addEventListener("click", async () => { settings.muted = b.dataset.muted === "1"; save(); mark(box, "muted", b); const a = await import("./audio.js?v=5"); a.setMuted(settings.muted); }));
+  box.querySelectorAll("[data-muted]").forEach((b) => b.addEventListener("click", async () => { settings.muted = b.dataset.muted === "1"; save(); mark(box, "muted", b); const a = await import("./audio.js?v=6"); a.setMuted(settings.muted); }));
+}
+function toggle(key) {
+  const on = settings[key] !== false;
+  return `<div class="seg-ctl" role="group"><button data-tg="${key}" data-v="1" aria-pressed="${on}">${t("on")}</button><button data-tg="${key}" data-v="0" aria-pressed="${!on}">${t("off")}</button></div>`;
 }
 function mark(box, name, btn) { box.querySelectorAll(`[data-${name}]`).forEach((x) => x.setAttribute("aria-pressed", x === btn)); }
 
@@ -144,7 +244,7 @@ async function startXR() {
   // requestSession must run inside the tap, so the module was preloaded when the menu opened
   const xr = await xrModule;
   closeModal();
-  import("./audio.js?v=5").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
+  import("./audio.js?v=6").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
   game.mode = "ar";
   showScreen(null);
   xr.startXR({ renderer: game.renderer, game, onExit: () => { game.mode = "menu"; game.resize(); renderHome(); showScreen("s-home"); } })
@@ -153,7 +253,7 @@ async function startXR() {
 
 async function openCamera() {
   let ar;
-  try { ar = await import("./ar.js?v=5"); } catch (err) { showError(err); return; }
+  try { ar = await import("./ar.js?v=6"); } catch (err) { showError(err); return; }
   const canCam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext;
   const framed = window.self !== window.top;
   openModal({
@@ -169,7 +269,7 @@ async function openCamera() {
         // sensor permission must be requested synchronously inside the tap (iOS)
         const sensorAsk = ar.requestSensors();
         closeModal();
-        import("./audio.js?v=5").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
+        import("./audio.js?v=6").then((a) => { a.unlockAudio(); a.setMuted(settings.muted); });
         showScreen(null);
         game.mode = "ar";
         ar.startCameraMode({ sensorAsk, onExit: () => { game.mode = "menu"; renderHome(); showScreen("s-home"); } })
@@ -188,12 +288,12 @@ async function boot() {
   showScreen("s-loading");
   if (!hasWebGL()) { showScreen("s-unsupported"); return; }
   try {
-    const { Game } = await import("./game.js?v=5");
+    const { Game } = await import("./game.js?v=6");
     game = new Game($("#view"), settings);
     if (new URLSearchParams(location.search).has("test")) window.__game = game; // automated tests only
     game.onExit = (where) => { if (where === "missions") { renderMissions(); showScreen("s-missions"); } else { renderHome(); showScreen("s-home"); } };
     game.onContextLost = () => showError(new Error("WebGL context lost"));
-    xrModule = import("./xr.js?v=5");
+    xrModule = import("./xr.js?v=6");
     wireHome();
     renderHome();
     booted = true;

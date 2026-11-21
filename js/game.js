@@ -1,15 +1,18 @@
 // Game engine: renderer, loop, first-person player, interaction, safety rules, HUD and the
 // mission runner. Mission logic lives in missions.js and talks to the engine through `ctx`.
-import * as THREE from "./vendor/three.module.min.js?v=5";
-import { buildWorld, ZONES } from "./world.js?v=5";
-import { disposeTextures } from "./textures.js?v=5";
-import { Player } from "./player.js?v=5";
-import { MISSIONS } from "./missions.js?v=5";
-import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=5";
-import { t, tx, getLang } from "./i18n.js?v=5";
-import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=5";
-import { sfx, startAlarm, stopAlarm } from "./audio.js?v=5";
-import { store } from "./storage.js?v=5";
+import * as THREE from "./vendor/three.module.min.js?v=6";
+import { buildWorld, ZONES } from "./world.js?v=6";
+import { disposeTextures } from "./textures.js?v=6";
+import { Player } from "./player.js?v=6";
+import { MISSIONS } from "./missions.js?v=6";
+import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=6";
+import { t, tx, getLang } from "./i18n.js?v=6";
+import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=6";
+import { sfx, startAlarm, stopAlarm, ambience } from "./audio.js?v=6";
+import { PostFX } from "./post.js?v=6";
+import { Cinema } from "./cinema.js?v=6";
+import { crowd } from "./npc.js?v=6";
+import { store } from "./storage.js?v=6";
 
 const QUALITY = {
   low: { ratio: 1, shadows: false },
@@ -27,6 +30,8 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.post = new PostFX(this.renderer);
+    this.threat = 0; this._stepAcc = 0;
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.08, 160);
     this.player = new Player(this.camera, canvas);
     this.player.onInteract = () => this.interact();
@@ -44,6 +49,8 @@ export class Game {
     this.shake = 0;
     this.onExit = null;
     this.buildScene();
+    this.cinema = new Cinema(this);
+    this.post.configure(this.settings.quality || "medium");
     addEventListener("resize", () => this.resize());
     canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); this.onContextLost && this.onContextLost(); });
     this.resize();
@@ -55,6 +62,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.ratio));
     const rebuild = this.renderer.shadowMap.enabled !== q.shadows && this.scene;
     this.renderer.shadowMap.enabled = q.shadows;
+    this.post.configure(this.settings.quality || "medium");
     this.resize();
     if (rebuild && this.mode === "menu") this.buildScene();
   }
@@ -84,6 +92,7 @@ export class Game {
     this.camera.aspect = w / h;
     this.camera.fov = w < h ? 78 : 66;    // wider view in portrait
     this.camera.updateProjectionMatrix();
+    if (this.post) this.post.resize();
   }
 
   // ======================= mission lifecycle =======================
@@ -125,9 +134,11 @@ export class Game {
     def.setup(this.ctx);
     this.renderObjectives();
     $("#score-val").textContent = this.score();
-    // briefing
+    this.kinds = {};
+    ambience.start();
+    // opening shot, then the briefing
     this.pause();
-    openModal({
+    const brief = () => openModal({
       tag: `${icon("shield")} ${t("missionN", { n: MISSION_ORDER.indexOf(id) + 1 })}`,
       title: tx(this.text.name),
       body: `<p>${tx(this.text.brief)}</p>${this.objs.length ? `<ol class="brief-list">${this.objs.map((o) => `<li>${o.text()}</li>`).join("")}</ol>` : ""}`,
@@ -139,13 +150,18 @@ export class Game {
         def.start && def.start(this.ctx);
       },
     });
+    const first = this.objs.find((o) => !o.hidden);
+    let focus = def.focus || (first && first.at);
+    if (typeof focus === "function") focus = focus();
+    if (this.settings.cinematics === false) brief();
+    else this.cinema.intro({ x: sp.x, z: sp.z, yaw: sp.yaw, focus, num: t("missionN", { n: MISSION_ORDER.indexOf(id) + 1 }), name: tx(this.text.name), onDone: brief });
   }
 
   pause() { this.player.enabled = false; this.player.releaseInput(); }
   resume() { if (this.mode === "play" && !this.ended) { this.player.enabled = true; this.clock.getDelta(); } }
 
   togglePause() {
-    if (this.mode !== "play") return;
+    if (this.mode !== "play" || this.cinema.active || this._talking) return;
     if (modalOpen()) { if (this._pauseOpen) closeModal(); return; }
     this.pause();
     this._pauseOpen = true;
@@ -165,6 +181,9 @@ export class Game {
 
   cleanupRun() {
     stopAlarm();
+    this.cinema && this.cinema.cancel();
+    $("#danger-edge").style.opacity = 0;
+    this.threat = 0; this.post.u.danger.value = 0;
     document.body.classList.remove("visor");
     if (this.ctx) this.ctx._timers.forEach(clearTimeout);
     this.ended = true;
@@ -176,34 +195,49 @@ export class Game {
     this.pause();
     $("#hud").hidden = true;
     $("#focus-tag").hidden = true;
+    ambience.stop();
     this.buildScene();
     this.onExit && this.onExit(where);
   }
 
   // ======================= per-frame =======================
   frame() {
-    const dt = Math.min(this.clock.getDelta(), 0.08);
+    const dt = Math.min(this.clock.getDelta(), this.maxDt || 0.08);
     if (this.mode === "ar") return;   // camera / AR modes render on their own
     if (this.mode === "menu") {
       const tt = performance.now() / 1000 * 0.05;
       this.camera.position.set(-6 + Math.sin(tt) * 22, 5.2 + Math.sin(tt * 1.7), 7 + Math.cos(tt * 1.3) * 3);
       this.camera.lookAt(4 + Math.sin(tt * .7) * 10, 2.2, -5);
       this.world.update(dt);
-      this.renderer.render(this.scene, this.camera);
+      this.post.render(this.scene, this.camera, dt);
       return;
     }
     const active = this.player.enabled;
     if (active) this.elapsed += dt;
+    const m0 = this.player.moved;
     this.player.update(dt, this.world.colliders, this.world.floorAt);
-    this.world.update(active ? dt : dt * 0.15);
+    this._stepAcc += this.player.moved - m0;
+    if (this._stepAcc > .78) { this._stepAcc = 0; sfx.step(); }
+    const cine = this.cinema.active;
+    this.world.update(active ? dt : cine ? dt * 0.12 : dt * 0.15);
+    if (cine) this.cinema.update(dt);
     if (active && !this.ended) this.tick(dt);
+    this.updateDanger(dt, active);
     this.updatePickMarkers();
     if (this.shake > 0) {
       this.shake -= dt;
       const s = this.shake * 0.12;
       this.camera.position.x += (Math.random() - .5) * s; this.camera.position.y += (Math.random() - .5) * s;
     }
-    this.renderer.render(this.scene, this.camera);
+    this.post.render(this.scene, this.camera, dt);
+    const fk = this.world.forklift.state, cr = this.world.crane.state, fi = this.world.fire, cam = this.camera.position;
+    ambience.update(dt, {
+      cam: { x: cam.x, y: cam.y, z: cam.z, yaw: cine ? this.camera.rotation.y : this.player.yaw, pitch: cine ? 0 : this.player.pitch },
+      fork: { on: fk.active && fk.wait <= 0, x: fk.x, z: fk.z },
+      crane: { moving: cr.active && cr.wait <= 0, x: cr.x },
+      fire: { on: fi.on, x: fi.x, y: fi.y, z: fi.z },
+      danger: active ? this.threat : 0,
+    });
     this.updateCompass();
     this.updateFocusTag();
   }
@@ -234,6 +268,33 @@ export class Game {
     this.updateFocus();
   }
 
+  // Danger sense: how close the nearest live hazard is (0..1) and which side it is on.
+  updateDanger(dt, active) {
+    let best = 0, hx = 0, hz = 0;
+    if (active && this.mode === "play" && !this.ended && this.rules) {
+      const p = this.player, w = this.world;
+      const rectD = (r) => Math.hypot(Math.max(r.minX - p.x, 0, p.x - r.maxX), Math.max(r.minZ - p.z, 0, p.z - r.maxZ));
+      const consider = (v, x, z) => { if (v > best) { best = v; hx = x; hz = z; } };
+      if (p.feet < 1) {
+        if (this.rules.crane && w.crane.state.active) { const r = w.crane.zone(); consider(1 - rectD(r) / 4.5, (r.minX + r.maxX) / 2, (r.minZ + r.maxZ) / 2); }
+        if (this.rules.forklift && w.forklift.state.active) { const f = w.forklift.state; consider(1 - (Math.hypot(f.x - p.x, f.z - p.z) - 1.6) / 6, f.x, f.z); }
+        if (this.rules.restricted) { const r = ZONES.restricted; consider(.7 * (1 - rectD(r) / 2.2), Math.max(r.minX, Math.min(r.maxX, p.x)), (r.minZ + r.maxZ) / 2); }
+      }
+      if (w.fire.on) consider(1 - (Math.hypot(w.fire.x - p.x, w.fire.z - p.z) - w.fire.r) / 5, w.fire.x, w.fire.z);
+    }
+    best = Math.max(0, Math.min(1, best));
+    this.threat += (best - this.threat) * Math.min(1, dt * 5);
+    const show = this.cfg && this.cfg.sense && this.settings.sense !== false ? this.threat : 0;
+    let dx = 0, dy = 0;
+    if (best > 0) {
+      const p = this.player;
+      let rel = Math.atan2(-(hx - p.x), -(hz - p.z)) - p.yaw;
+      dx = -Math.sin(rel); dy = Math.cos(rel);
+    }
+    if (this.post.enabled) { this.post.u.danger.value = show * .85; if (best > 0) this.post.u.dangerDir.value.set(dx, dy); $("#danger-edge").style.opacity = 0; }
+    else { const el = $("#danger-edge"); el.style.opacity = show.toFixed(2); el.style.setProperty("--dx", dx.toFixed(2)); el.style.setProperty("--dy", dy.toFixed(2)); }
+  }
+
   ruleBreach(x, z, pad) {
     const r = this.rules;
     if (this.player.feet > 1) return null;   // up on the maintenance platform
@@ -250,11 +311,13 @@ export class Game {
     this.violationCooldown = 1.5;
     this.pause(); sfx.bad();
     if (kind === "crane" || kind === "forklift" || kind === "noLook") sfx.horn();
-    flash("bad", 900); this.shake = kind === "forklift" ? .8 : .4;
+    this.shake = kind === "forklift" ? .8 : .4;
     if (kind === "crane") this.world.crane.state.wait = Math.max(this.world.crane.state.wait, 2.5);
     if (kind === "forklift" || kind === "noLook") this.world.forklift.state.wait = Math.max(this.world.forklift.state.wait, 3);
     this.addPenalty(SCORING.violation, v.t);
-    openModal({
+    this.kinds[kind] = (this.kinds[kind] || 0) + 1;
+    try { navigator.vibrate && navigator.vibrate([60, 40, 120]); } catch (_) {}
+    const lesson = () => openModal({
       tone: "bad",
       tag: `${icon("warn")} ${t("violation")}`,
       title: tx(v.t),
@@ -262,6 +325,23 @@ export class Game {
       actions: [{ label: t("stepBack"), primary: true, onClick: () => closeModal() }],
       onClose: () => { this.stepToSafety(kind, extra); this.resume(); },
     });
+    if (this.settings.replay === false) { flash("bad", 900); lesson(); return; }
+    this.cinema.replay(kind, { focus: this.hazardFocus(kind), onDone: lesson });
+  }
+
+  // Where the hazard was, for the incident replay camera.
+  hazardFocus(kind) {
+    const w = this.world, p = this.player;
+    if (kind === "crane") { const r = w.crane.zone(); return { x: (r.minX + r.maxX) / 2, y: 3, z: p.z }; }
+    if (kind === "forklift" || kind === "noLook" || kind === "aisle") {
+      const f = w.forklift.state;
+      const dirX = f.active ? (f.x < p.x ? 1 : -1) : (p.x > 0 ? -1 : 1);
+      return { x: p.x - dirX * 6, y: 1.2, z: p.z, dirX };
+    }
+    if (kind === "fire") return { x: w.fire.x, y: w.fire.y, z: w.fire.z };
+    if (kind === "restricted") return { x: p.x, y: 1.4, z: -9 };
+    if (kind === "fall") return { x: p.x, y: p.feet - 2, z: p.z - 2 };
+    return null;
   }
 
   stepToSafety(kind, extra) {
@@ -497,6 +577,104 @@ export class Game {
         });
       },
       ppeSelect() { return g.ppeSelect(); },
+      crowd(routes) { return crowd(ctx, routes); },
+      fxSpot(spot) { g.fxSpot = spot; },
+      // Spoken dialogue with timed answers. Wrong answers and silence play their consequence,
+      // cost points and ask again. Resolves when the right answer is given.
+      dialogue({ who, line, opts, seconds, silence, silenceT, penalty = SCORING.wrongChoice }) {
+        return new Promise((res) => {
+          const order = shuffle(opts.map((_, i) => i)), tried = [];
+          const el = $("#talk"), lineEl = el.querySelector(".talk-line"), box = el.querySelector(".talk-opts"), clock = el.querySelector(".talk-clock");
+          let timer = 0, typer = 0, left = 0, done = false;
+          const stop = () => { clearInterval(timer); clearInterval(typer); };
+          const wrong = (title, body, fx) => {
+            stop(); el.hidden = true; g._talking = false;
+            g.addPenalty(penalty, title);
+            g.playFx(fx || "bad");
+            setTimeout(() => openModal({ tone: "bad", tag: `${icon("x")} ${t("wrongT")}`, title: tx(title), body: `<p>${tx(body)}</p><p class="muted">−${penalty} ${t("score")}</p>`,
+              actions: [{ label: t("tryAgain"), primary: true, onClick: () => { closeModal(); ask(); } }] }), fx === "fireBurst" ? 1500 : 600);
+          };
+          const ask = () => {
+            g.pause(); g._talking = true;
+            el.hidden = false;
+            el.querySelector(".talk-who b").textContent = tx(who);
+            const full = tx(line); let n = 0;
+            lineEl.textContent = ""; box.innerHTML = ""; clock.hidden = true;
+            sfx.radio();
+            const showOpts = () => {
+              clearInterval(typer); lineEl.textContent = full;
+              const keys = getLang() === "ar" ? ["أ", "ب", "ج", "د"] : ["A", "B", "C", "D"];
+              box.innerHTML = order.map((k, i) => `<button class="opt ${tried.includes(k) ? "tried" : ""}" data-k="${k}" ${tried.includes(k) ? "disabled" : ""}><span class="key">${keys[i]}</span><span>${tx(opts[k].t)}</span></button>`).join("");
+              box.querySelectorAll(".opt").forEach((b) => b.addEventListener("click", () => {
+                if (done) return;
+                const o = opts[+b.dataset.k];
+                if (o.ok) { done = true; stop(); el.hidden = true; g._talking = false; g.playFx("good"); toast(tx(o.r), 3400); g.resume(); res(tried.length + 1); }
+                else { tried.push(+b.dataset.k); wrong(o.t, o.r, o.fx); }
+              }));
+              const f = box.querySelector(".opt:not([disabled])"); f && f.focus({ preventScroll: true });
+              if (seconds) {
+                left = seconds; clock.hidden = false; clock.style.setProperty("--k", 1); clock.querySelector("span").textContent = Math.ceil(left);
+                const t0 = performance.now();
+                timer = setInterval(() => {
+                  left = seconds - (performance.now() - t0) / 1000;
+                  clock.style.setProperty("--k", Math.max(0, left / seconds).toFixed(3));
+                  const sec = Math.ceil(Math.max(0, left));
+                  if (clock.querySelector("span").textContent !== String(sec)) { clock.querySelector("span").textContent = sec; if (sec <= 3) sfx.countdown(); }
+                  clock.classList.toggle("low", left < 3.5);
+                  if (left <= 0) wrong(silenceT, silence, "bad");
+                }, 100);
+              }
+            };
+            const t0 = performance.now();
+            typer = setInterval(() => { const m = Math.floor((performance.now() - t0) * .07); if (m > n + 3) sfx.type(); n = m; lineEl.textContent = full.slice(0, n); if (n >= full.length) showOpts(); }, 30);
+            lineEl.onclick = () => { if (n < full.length) { n = full.length; showOpts(); } };
+          };
+          ask();
+        });
+      },
+      // A line spoken without choices (tap to continue).
+      say(who, line, button) {
+        return new Promise((res) => {
+          g.pause(); g._talking = true;
+          const el = $("#talk"), lineEl = el.querySelector(".talk-line"), box = el.querySelector(".talk-opts");
+          el.hidden = false; el.querySelector(".talk-clock").hidden = true;
+          el.querySelector(".talk-who b").textContent = tx(who);
+          const full = tx(line); let n = 0;
+          box.innerHTML = ""; sfx.radio();
+          const end = () => { el.hidden = true; g._talking = false; g.resume(); res(); };
+          const show = () => { clearInterval(typer); lineEl.textContent = full; box.innerHTML = `<button class="btn primary">${button || t("cont")}</button>`; const b = box.querySelector("button"); b.addEventListener("click", end); b.focus({ preventScroll: true }); };
+          const t0 = performance.now();
+          const typer = setInterval(() => { const m = Math.floor((performance.now() - t0) * .07); if (m > n + 3) sfx.type(); n = m; lineEl.textContent = full.slice(0, n); if (n >= full.length) show(); }, 30);
+          lineEl.onclick = () => { if (n < full.length) { n = full.length; show(); } };
+        });
+      },
+      // Put steps in the right order by tapping them. Each wrong tap costs a few points.
+      order({ title, q, steps, learn, penalty = SCORING.minor }) {
+        return new Promise((res) => {
+          g.pause();
+          const idx = shuffle(steps.map((_, i) => i));
+          let next = 0, mistakes = 0;
+          const box = openModal({ wide: true, tag: `${icon("grid")} ${tx(g.text.name)}`, title: tx(title),
+            body: `<p>${tx(q)}</p><ol class="order-done"></ol><div class="order-pool">${idx.map((i) => `<button class="opt" data-i="${i}"><span class="key">?</span><span>${tx(steps[i])}</span></button>`).join("")}</div>` });
+          const doneList = box.querySelector(".order-done");
+          box.querySelectorAll(".order-pool .opt").forEach((b) => b.addEventListener("click", () => {
+            const i = +b.dataset.i;
+            if (i === next) {
+              sfx.click(); next++;
+              doneList.insertAdjacentHTML("beforeend", `<li>${icon("check")}<span>${tx(steps[i])}</span></li>`);
+              b.remove();
+              if (next === steps.length) {
+                closeModal(); g.playFx("good");
+                openModal({ tone: "good", tag: `${icon("check")} ${t("rightT")}`, title: tx(title), body: `${mistakes ? `<p class="muted">${t("orderMistakes", { n: mistakes })}</p>` : ""}<div class="learn"><b>${t("remember")}</b><p>${tx(learn)}</p></div>`,
+                  actions: [{ label: t("cont"), primary: true, onClick: () => closeModal() }], onClose: () => { g.resume(); res(mistakes); } });
+              }
+            } else {
+              mistakes++; sfx.bad(); g.addPenalty(penalty, title);
+              b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake");
+            }
+          }));
+        });
+      },
       complete(extra) { g.completeMission(extra); },
       fail(title, body) { g.failMission(title, body); },
     };
@@ -506,6 +684,11 @@ export class Game {
   playFx(kind) {
     if (kind === "good") { sfx.good(); flash("good", 900); return; }
     sfx.bad();
+    if (kind === "fireBurst") {
+      sfx.fireBurst(); flash("fire", 1600); this.shake = .8;
+      if (this.fxSpot) { this.world.setFire(true, this.fxSpot); const s = this.fxSpot; setTimeout(() => this.world.setFire(false, s), 1700); }
+      return;
+    }
     if (kind === "steam") { this.world.steamBurst(); flash("steam", 1600); this.shake = .7; }
     else if (kind === "trip") { flash("bad", 900); this.shake = .7; this.player.pitch = -0.6; }
     else if (kind === "smoke") { flash("smoke", 1600); }
@@ -562,6 +745,7 @@ export class Game {
     const stars = score >= SCORING.stars[0] ? 3 : score >= SCORING.stars[1] ? 2 : 1;
     const prev = store.getProgress()[this.missionId];
     store.recordMission(this.missionId, this.diff, score, stars);
+    store.recordStats(this.missionId, { kinds: this.kinds, mistakes: this.log.length, seconds: Math.round(this.elapsed) });
     const idx = MISSION_ORDER.indexOf(this.missionId), next = MISSION_ORDER[idx + 1];
     const result = { id: this.missionId, score, stars, elapsed: this.elapsed, log: this.log, newBest: !prev || score > (prev.best || 0) };
     openModal({

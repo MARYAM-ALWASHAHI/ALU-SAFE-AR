@@ -1,13 +1,15 @@
 // The eight missions. Each mission sets up its own objects, objectives and rules through `ctx`
 // (see Game.makeCtx in game.js) and runs its own logic every frame in update().
 // All wording comes from content.js so HSE can review it in one place.
-import * as THREE from "./vendor/three.module.min.js?v=5";
-import * as A from "./assets.js?v=5";
-import { SPOTS, ZONES } from "./world.js?v=5";
-import { MISSION_TEXT, HUNT_SPOTS, HAZARD_CATS, PPE_CHECK, SCORING } from "./content.js?v=5";
-import { t, tx, getLang } from "./i18n.js?v=5";
-import { icon, ppeArt, openModal, closeModal } from "./ui.js?v=5";
-import { sfx } from "./audio.js?v=5";
+import * as THREE from "./vendor/three.module.min.js?v=6";
+import * as A from "./assets.js?v=6";
+import { SPOTS, ZONES } from "./world.js?v=6";
+import { MISSION_TEXT, HUNT_SPOTS, HAZARD_CATS, PPE_CHECK, SCORING } from "./content.js?v=6";
+import { t, tx, getLang } from "./i18n.js?v=6";
+import { icon, ppeArt, openModal, closeModal } from "./ui.js?v=6";
+import { sfx } from "./audio.js?v=6";
+import { walker, animateWalk } from "./npc.js?v=6";
+import { glowSprite } from "./textures.js?v=6";
 
 const T = MISSION_TEXT;
 const L = (en, ar) => ({ en, ar });
@@ -35,6 +37,8 @@ function fixtures(ctx, opts = {}) {
     const w1 = A.worker(M); w1.position.set(-20, 0, -6.2); w1.rotation.y = Math.PI; ctx.add(w1);
     const w2 = A.worker(M, { helmet: 0x1f8a4c }); w2.position.set(33.2, 0, -4.4); w2.rotation.y = -Math.PI / 2; ctx.add(w2);
   }
+  // colleagues walking the walkways (not where hazards are laid out on the walkway)
+  if (opts.walkers !== false && !opts.noCrowd) ctx.state.crowd = ctx.crowd(opts.routes);
   return { calls, exts, eyes, board };
 }
 
@@ -173,6 +177,7 @@ function startEvacuation(ctx, st) {
   const { world, cfg } = ctx, tt = T.emergency;
   st.evac = true;
   ctx.alarm(true);
+  if (st.crowd) st.crowd.evacuate();
   world.crane.state.active = false;
   world.forklift.park();
   ctx.rules({ fire: true, aisle: false, forklift: false, crane: false });
@@ -211,6 +216,71 @@ function evacUpdate(ctx, st, dt) {
     ctx.done("evac"); ctx.timer(null); ctx.meter(null, null);
     st.wardenItem.enabled = true;
   }
+}
+
+// Sparks (hot work) and extinguisher spray share one pooled particle system.
+function makeSparks(ctx) {
+  const N = 420;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3).fill(-99), col = new Float32Array(N * 3);
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({ size: .09, map: glowSprite(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; ctx.add(pts);
+  const vel = new Float32Array(N * 3), life = new Float32Array(N), kind = new Uint8Array(N);
+  let next = 0, acc = 0;
+  const spawn = (x, y, z, vx, vy, vz, l, k) => {
+    const i = next++ % N;
+    pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z; vel[i * 3] = vx; vel[i * 3 + 1] = vy; vel[i * 3 + 2] = vz; life[i] = l; kind[i] = k;
+  };
+  ctx.world.addUpdater((dt) => {
+    for (let i = 0; i < N; i++) {
+      if (life[i] <= 0) continue;
+      life[i] -= dt;
+      if (kind[i] === 0) vel[i * 3 + 1] -= 9.8 * dt;
+      pos[i * 3] += vel[i * 3] * dt; pos[i * 3 + 1] += vel[i * 3 + 1] * dt; pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
+      if (pos[i * 3 + 1] < .02 && kind[i] === 0) { pos[i * 3 + 1] = .02; vel[i * 3 + 1] *= -.3; vel[i * 3] *= .6; vel[i * 3 + 2] *= .6; }
+      const k = Math.max(0, life[i]);
+      if (kind[i] === 0) { col[i * 3] = Math.min(1, k * 2) * 2.4; col[i * 3 + 1] = (.25 + k * .9) * Math.min(1, k * 2); col[i * 3 + 2] = .08 * k; }
+      else { col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = .55 * Math.min(1, k * 2); }
+      if (life[i] <= 0) pos[i * 3 + 1] = -99;
+    }
+    geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true;
+  });
+  return {
+    emit(p, dt) {
+      acc += dt * 160;
+      while (acc >= 1) { acc--; const a = (Math.random() - .5) * 2.2, sp = 3 + Math.random() * 4.5;
+        spawn(p.x, p.y, p.z, Math.sin(a) * sp, 1 + Math.random() * 2.5, Math.cos(a) * sp * .9 + .4, .5 + Math.random() * .9, 0); }
+    },
+    spray(from, to, dt) {
+      acc += dt * 120;
+      const d = to.clone().sub(from); const L = d.length(); d.normalize();
+      while (acc >= 1) { acc--; const sp = L * (1.4 + Math.random() * .4);
+        spawn(from.x, from.y, from.z, d.x * sp + (Math.random() - .5) * 1.2, d.y * sp + (Math.random() - .5) * .8, d.z * sp + (Math.random() - .5) * 1.2, .7, 1); }
+    },
+  };
+}
+
+// A small smouldering spot: glow and a thin column of smoke.
+function makeSmoulder(ctx, at) {
+  const g = new THREE.Group(); g.position.set(at.x, 0, at.z); ctx.add(g);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(.22, 16), new THREE.MeshBasicMaterial({ color: 0xff5a10, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.rotation.x = -Math.PI / 2; glow.position.y = .03; g.add(glow);
+  const puffs = [];
+  const tex = new THREE.CanvasTexture((() => { const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"); const gr = x.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return c; })());
+  for (let i = 0; i < 14; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0x5a5e63, transparent: true, opacity: 0, depthWrite: false })); s.userData.t = i / 14; g.add(s); puffs.push(s); }
+  let on = true;
+  const off = ctx.world.addUpdater((dt, t) => {
+    glow.material.opacity = on ? .6 + Math.sin(t * 9) * .3 : Math.max(0, glow.material.opacity - dt);
+    for (const s of puffs) {
+      s.userData.t = (s.userData.t + dt * .35) % 1; const k = s.userData.t;
+      s.position.set(Math.sin(k * 6 + s.id) * .15 * k, .1 + k * 2.6, Math.cos(k * 5) * .1 * k);
+      s.scale.setScalar(.25 + k * 1.1);
+      s.material.opacity = on ? (1 - k) * .55 : Math.max(0, s.material.opacity - dt * .8);
+    }
+  });
+  return { out() { on = false; setTimeout(off, 2500); } };
 }
 
 // =======================================================================================
@@ -598,13 +668,207 @@ export const MISSIONS = {
     update(ctx, dt) { evacUpdate(ctx, ctx.state, dt); },
   },
 
-  // 8 -------------------------------------------------------------------------------------
+  // 7 -------------------------------------------------------------------------------------
+  // Under Pressure: a supervisor pushes for unsafe hot work. The trainee answers under a timer,
+  // uses stop-work authority, then does the job the safe way. A fire watch catches a smoulder.
+  pressure: {
+    spawn: { x: 4, z: 7.3, yaw: -Math.PI / 2 },
+    rules: { aisle: true },
+    setup(ctx) {
+      const tt = T.pressure, st = ctx.state, { M, world, player } = ctx, gb = A.gbox, gc = A.gcyl;
+      const fx = fixtures(ctx, { routes: ["west", "mid"] });
+      const JOB = { x: 21, z: 8.4 }, DRUM = { x: 22.7, z: 9.25 }, CAB = { x: 11, z: 9.6 }, SUP = { x: 24.4, z: 7.0 }, WATCH0 = { x: 30.5, z: 7.0 }, WATCH1 = { x: 19.4, z: 6.8 };
+      const SMOULDER = { x: 21.9, z: 9.1 }, EXTSPOT = { x: 20.1, z: 7.55 };
+      ctx.fxSpot({ x: DRUM.x, z: DRUM.z, y: 1.1, r: 1.2 });
+      ctx.objectives([
+        { id: "talk", text: tt.obj.talk, at: SUP },
+        { id: "permit", text: tt.obj.permit, at: { x: 14.8, z: 7.7 }, hidden: true },
+        { id: "drum", text: tt.obj.drum, at: () => (st.carry === "drum" ? CAB : DRUM), hidden: true },
+        { id: "ext", text: tt.obj.ext, at: () => (st.carry === "ext" ? EXTSPOT : SPOTS.extinguishers[2]), hidden: true },
+        { id: "watch", text: tt.obj.watch, at: WATCH0, hidden: true },
+        { id: "grind", text: tt.obj.grind, at: JOB, hidden: true },
+        { id: "smoulder", text: tt.obj.smoulder, at: SMOULDER, hidden: true },
+        { id: "report", text: tt.obj.report, at: SUP, hidden: true },
+      ]);
+      // supervisor with a clipboard
+      const sup = walker(M, { helmet: 0xf4f6f8 }); sup.position.set(SUP.x, 0, SUP.z); sup.rotation.y = -Math.PI / 2; ctx.add(sup);
+      gb(sup.userData.limbs.armR, .24, .32, .02, M.white, 0, -.45, .14);
+      sup.userData.limbs.armR.rotation.x = -.7;
+      world.colliders.push({ minX: SUP.x - .35, maxX: SUP.x + .35, minZ: SUP.z - .35, maxZ: SUP.z + .35, bottom: 0, top: 1.9 });
+      // fire-watch colleague
+      const fw = walker(M, { helmet: 0xd9531e }); fw.position.set(WATCH0.x, 0, WATCH0.z); fw.rotation.y = -Math.PI / 2; ctx.add(fw);
+      const fwCol = { minX: WATCH0.x - .3, maxX: WATCH0.x + .3, minZ: WATCH0.z - .3, maxZ: WATCH0.z + .3, bottom: 0, top: 1.9 }; world.colliders.push(fwCol);
+      // the job: a cracked bracket on the workshop rail
+      const job = new THREE.Group(); job.position.set(JOB.x, 0, JOB.z); ctx.add(job);
+      const plate = gb(job, .34, .26, .03, M.amber, 0, .82, -.06);
+      const crack = gb(job, .03, .27, .035, M.carbon, .04, .82, -.065); crack.rotation.z = .5;
+      const broken = gb(job, .16, .12, .03, M.amber, .2, .62, -.06); broken.rotation.z = -.9;
+      // open solvent drum behind the rail
+      const drumModel = () => { const g = new THREE.Group(); gc(g, .29, .29, .88, M.red, 0, .44, 0, 0, 0, 18); gc(g, .3, .3, .03, M.darkSteel, 0, .2, 0, 0, 0, 18); gc(g, .3, .3, .03, M.darkSteel, 0, .66, 0, 0, 0, 18);
+        const top = new THREE.Mesh(new THREE.CircleGeometry(.26, 18), M.oil); top.rotation.x = -Math.PI / 2; top.position.y = .885; g.add(top);
+        const lid = gc(g, .29, .29, .03, M.red, .34, .02, .1, 0, 0, 18); lid.rotation.z = .1;
+        const lbl = A.sign({ bg: "#f2a900", fg: "#111111", en: "SOLVENT", ar: "مذيبات", icon: "fire" }, .42); lbl.position.set(0, .5, .3); g.add(lbl); return g; };
+      const drum = drumModel(); drum.position.set(DRUM.x, 0, DRUM.z); ctx.add(drum);
+      const drumCol = { minX: DRUM.x - .32, maxX: DRUM.x + .32, minZ: DRUM.z - .32, maxZ: DRUM.z + .32, bottom: 0, top: 1 }; world.colliders.push(drumCol);
+      // flammables cabinet
+      const cab = new THREE.Group(); cab.position.set(CAB.x, 0, CAB.z); cab.rotation.y = -Math.PI / 2; ctx.add(cab);
+      gb(cab, 1.2, 1.7, .62, M.yellow, 0, .85, 0); gb(cab, .02, 1.5, .02, M.carbon, 0, .9, .32); gb(cab, .04, .3, .04, M.darkSteel, -.08, .95, .33); gb(cab, .04, .3, .04, M.darkSteel, .08, .95, .33);
+      const cs = A.sign({ bg: "#b3261e", fg: "#ffffff", en: "FLAMMABLE", ar: "قابل للاشتعال", icon: "fire" }, .9); cs.position.set(0, 1.35, .32); cab.add(cs);
+      world.colliders.push({ minX: CAB.x - .35, maxX: CAB.x + .35, minZ: CAB.z - .62, maxZ: CAB.z + .62, bottom: 0, top: 1.8 });
+      // hot-work permit box at the workshop gate
+      const pbox = A.permitBox(M); pbox.position.set(14.8, 0, 8.25); ctx.add(pbox);
+      const pSign = A.sign({ bg: "#0a5fa8", fg: "#ffffff", en: "HOT WORK PERMITS", ar: "تصاريح الأعمال الساخنة", icon: "" }, .9); pSign.position.set(0, 1.75, .07); pbox.add(pSign);
+      // spot where the extinguisher goes
+      const extRing = new THREE.Mesh(new THREE.RingGeometry(.3, .38, 32), new THREE.MeshBasicMaterial({ color: 0xff3b2f, transparent: true, opacity: .8 }));
+      extRing.rotation.x = -Math.PI / 2; extRing.position.set(EXTSPOT.x, .02, EXTSPOT.z); extRing.visible = false; ctx.add(extRing);
+
+      const enable = (...items) => items.forEach((i) => { i.enabled = true; });
+      st.carry = null;
+
+      // ---- 1. the conversation ----
+      const supItem = ctx.item({ obj: sup, pos: new THREE.Vector3(SUP.x, 1.9, SUP.z), range: 2.8, label: tt.who, verb: L("Talk", "تحدّث"), onUse: async (it) => {
+        it.enabled = false;
+        if (!ctx.isDone("talk")) {
+          const sec = ctx.cfg.talkSeconds;
+          await ctx.dialogue({ who: tt.who, line: tt.r1, opts: tt.r1opts, seconds: sec, silence: tt.silence, silenceT: tt.silenceT });
+          await ctx.dialogue({ who: tt.who, line: tt.r2, opts: tt.r2opts, seconds: sec, silence: tt.silence, silenceT: tt.silenceT });
+          await ctx.say(tt.who, tt.r3);
+          await ctx.order({ title: tt.orderT, q: tt.orderQ, steps: tt.steps, learn: tt.orderLearn });
+          await ctx.say(tt.who, tt.okLine);
+          ctx.done("talk");
+          ["permit", "drum", "ext", "watch", "grind"].forEach((id) => ctx.show(id));
+          enable(permitItem, drumItem, extItem, watchItem, jobItem);
+        } else if (ctx.isDone("smoulder") || st.smoulderDone) {
+          await ctx.say(tt.who, tt.thanks);
+          ctx.done("report");
+          ctx.complete();
+        } else it.enabled = true;
+      } });
+
+      // ---- 2. permit ----
+      const permitItem = ctx.item({ obj: pbox, pos: new THREE.Vector3(14.8, 1.4, 8.2), label: tt.permitName, verb: L("Collect", "استلم"), enabled: false, onUse: (it) => {
+        it.remove(); pbox.userData.paper.visible = false; ctx.done("permit"); sfx.good();
+        ctx.toast(L("Hot-work permit collected and signed.", "استلمت تصريح الأعمال الساخنة الموقّع."), 2400);
+      } });
+
+      // ---- 3. move the solvent drum ----
+      const drumItem = ctx.item({ obj: drum, range: 2.4, label: tt.drumName, verb: L("Pick up", "احمل"), enabled: false, onUse: (it) => {
+        if (st.carry) { ctx.toast(L("Your hands are full.", "يداك مشغولتان."), 1800); it.enabled = true; return; }
+        it.remove(); drum.visible = false; drumCol.minX = drumCol.maxX = 999;
+        const small = drumModel(); small.scale.setScalar(.38);
+        st.carry = "drum"; ctx.carry(small, tx(tt.drumName)); ctx.refresh(); cabItem.enabled = true;
+      } });
+      const cabItem = ctx.item({ obj: cab, pos: new THREE.Vector3(CAB.x, 1.5, CAB.z), range: 2.4, label: tt.cabinet, verb: L("Store", "خزّن"), enabled: false, onUse: (it) => {
+        if (st.carry !== "drum") { it.enabled = true; return; }
+        it.remove(); st.carry = null; ctx.carry(null); ctx.done("drum");
+        const d = drumModel(); d.scale.setScalar(.7); d.position.set(CAB.x + .45, 0, CAB.z + .55); ctx.add(d);
+        ctx.toast(L("Lid on, drum stored in the flammables cabinet.", "أُغلق البرميل وخُزّن في خزانة المواد القابلة للاشتعال."), 2600);
+      } });
+
+      // ---- 4. bring an extinguisher ----
+      const wallExt = fx.exts[2].g;
+      const extItem = ctx.item({ obj: wallExt, label: tt.extName, verb: L("Take", "خذ"), enabled: false, onUse: (it) => {
+        if (st.carry) { ctx.toast(L("Your hands are full.", "يداك مشغولتان."), 1800); it.enabled = true; return; }
+        it.remove(); wallExt.visible = false;
+        const e = A.extinguisher(M); e.scale.setScalar(.7); e.children.forEach((c) => { if (c.isMesh && c.geometry.type === "PlaneGeometry") c.visible = false; });
+        st.carry = "ext"; ctx.carry(e, tx(tt.extName)); ctx.refresh(); extRing.visible = true; placeItem.enabled = true;
+      } });
+      const placeHolder = new THREE.Group(); placeHolder.position.set(EXTSPOT.x, 0, EXTSPOT.z); ctx.add(placeHolder);
+      const placeItem = ctx.item({ obj: placeHolder, pos: new THREE.Vector3(EXTSPOT.x, .5, EXTSPOT.z), label: tt.placeExt, verb: L("Place", "ضع"), range: 2.2, enabled: false, onUse: (it) => {
+        if (st.carry !== "ext") { it.enabled = true; return; }
+        it.remove(); st.carry = null; ctx.carry(null); extRing.visible = false;
+        st.ext = A.extinguisher(M); st.ext.position.set(EXTSPOT.x, -.4, EXTSPOT.z); st.ext.children.forEach((c) => { if (c.isMesh && (c.geometry.type === "PlaneGeometry" || (c.geometry.type === "BoxGeometry" && c.position.y > .9 && c.position.y < 1))) c.visible = false; });
+        ctx.add(st.ext); ctx.done("ext");
+      } });
+
+      // ---- 5. fire watch ----
+      const watchItem = ctx.item({ obj: fw, pos: new THREE.Vector3(WATCH0.x, 1.9, WATCH0.z), range: 2.8, label: tt.whoWatch, verb: L("Ask", "اطلب"), enabled: false, onUse: async (it) => {
+        it.remove();
+        await ctx.say(tt.whoWatch, tt.watchLine);
+        ctx.done("watch");
+        fwCol.minX = fwCol.maxX = 999;
+        // walk over to the job
+        let ph = 0;
+        const off = world.addUpdater((dt) => {
+          const dx = WATCH1.x - fw.position.x, dz = WATCH1.z - fw.position.z, d = Math.hypot(dx, dz);
+          if (d < .1) { fw.rotation.y = 0; animateWalk(fw, 0, 0); Object.assign(fwCol, { minX: WATCH1.x - .3, maxX: WATCH1.x + .3, minZ: WATCH1.z - .3, maxZ: WATCH1.z + .3 }); off(); return; }
+          const pd = Math.hypot(player.x - fw.position.x, player.z - fw.position.z);
+          if (pd < 1.2) { animateWalk(fw, ph, 0); return; }
+          const step = Math.min(d, 1.4 * dt); fw.position.x += dx / d * step; fw.position.z += dz / d * step;
+          fw.rotation.y = Math.atan2(dx, dz); ph += dt * 8; animateWalk(fw, ph, 1);
+        });
+      } });
+
+      // ---- 6. the hot work ----
+      const sparks = makeSparks(ctx);
+      const jobItem = ctx.item({ obj: job, pos: new THREE.Vector3(JOB.x, 1.05, JOB.z - .1), range: 2.2, label: tt.bracket, verb: L("Grind", "اقطع"), enabled: false, onUse: async (it) => {
+        const missing = ["permit", "drum", "ext", "watch"].filter((id) => !ctx.isDone(id));
+        if (st.carry) { ctx.toast(L("Put down what you are carrying first.", "ضع ما تحمله أولاً."), 2000); it.enabled = true; return; }
+        if (!ctx.isDone("drum")) {
+          ctx.fx("fireBurst"); ctx.penalty(SCORING.wrongChoice, tt.drumFireT);
+          await new Promise((r) => setTimeout(r, 1500));
+          await ctx.info({ tone: "bad", tag: `${icon("x")} ${t("wrongT")}`, title: tt.drumFireT, body: `<p>${tx(tt.drumFireB)}</p><p class="muted">−${SCORING.wrongChoice} ${t("score")}</p>` });
+          it.enabled = true; return;
+        }
+        if (missing.length) {
+          ctx.penalty(SCORING.wrongCheck, tt.notYetT); ctx.fx("bad");
+          await ctx.info({ tone: "bad", tag: `${icon("x")} ${t("wrongT")}`, title: tt.notYetT, body: `<p>${tx(tt.notYetB)}</p><ul>${missing.map((id) => `<li>${tx(tt.obj[id])}</li>`).join("")}</ul><p class="muted">−${SCORING.wrongCheck} ${t("score")}</p>` });
+          it.enabled = true; return;
+        }
+        it.remove();
+        // grinding: sparks spray into the workshop for a few seconds
+        const grinder = new THREE.Group(); gc(grinder, .045, .05, .3, M.teal, 0, 0, 0, Math.PI / 2); gb(grinder, .07, .08, .1, M.darkSteel, 0, .03, -.17); gc(grinder, .085, .085, .015, M.silver, .05, -.03, -.2, 0, Math.PI / 2, 20);
+        gb(grinder, .02, .18, .02, M.rubber, -.02, .1, -.05); grinder.scale.setScalar(.8);
+        ctx.carry(grinder, tx(tt.grinding)); player.speedScale = 0;
+        sfx.grind(3); ctx.toast(tt.grinding, 3000);
+        const pos = new THREE.Vector3(JOB.x, .86, JOB.z - .02);
+        const stop = world.addUpdater((dt) => sparks.emit(pos, dt));
+        await new Promise((r) => ctx.later(3000, r));
+        stop(); ctx.carry(null); player.speedScale = 1;
+        plate.visible = crack.visible = broken.visible = false;
+        gb(job, .34, .05, .03, M.silver, 0, .9, -.06);
+        ctx.done("grind");
+        ctx.toast(tt.afterGrind, 3200);
+        // the smoulder the fire watch catches
+        ctx.later(6000, async () => {
+          st.smoulder = makeSmoulder(ctx, SMOULDER);
+          ctx.show("smoulder");
+          await ctx.say(tt.whoWatch, tt.smoke);
+          smoulderItem.enabled = true;
+          ctx.timer(ctx.diff === "hard" ? 15 : 25, () => {
+            if (st.smoulderDone) return;
+            st.smoulder.out(); smoulderItem.remove(); st.smoulderDone = true;
+            ctx.penalty(SCORING.wrongCheck, tt.smoulderLate);
+            ctx.info({ tone: "bad", tag: `${icon("warn")} ${tx(tt.name)}`, title: tt.obj.smoulder, body: `<p>${tx(tt.smoulderLate)}</p><p class="muted">−${SCORING.wrongCheck} ${t("score")}</p>` });
+            ctx.done("smoulder"); ctx.show("report"); supItem.enabled = true;
+          });
+        });
+      } });
+      const smoulderHolder = new THREE.Group(); smoulderHolder.position.set(SMOULDER.x, 0, SMOULDER.z); ctx.add(smoulderHolder);
+      const smoulderItem = ctx.item({ obj: smoulderHolder, pos: new THREE.Vector3(SMOULDER.x, .6, SMOULDER.z - .6), range: 2.8, label: tt.obj.smoulder, verb: L("Extinguish", "أطفئ"), enabled: false, onUse: async (it) => {
+        it.remove(); ctx.timer(null);
+        // pick up the extinguisher and spray
+        if (st.ext) st.ext.visible = false;
+        const e = A.extinguisher(M); e.scale.setScalar(.7); e.children.forEach((c) => { if (c.isMesh && c.geometry.type === "PlaneGeometry") c.visible = false; });
+        ctx.carry(e, tx(tt.extName)); sfx.spray();
+        const from = new THREE.Vector3(player.x, 1.1, player.z), to = new THREE.Vector3(SMOULDER.x, .2, SMOULDER.z);
+        const stop = world.addUpdater((dt) => sparks.spray(from, to, dt));
+        await new Promise((r) => ctx.later(1600, r));
+        stop(); st.smoulder.out(); ctx.carry(null); if (st.ext) st.ext.visible = true;
+        st.smoulderDone = true; ctx.done("smoulder");
+        await ctx.say(tt.whoWatch, tt.smoulderOut);
+        ctx.show("report"); supItem.enabled = true;
+      } });
+    },
+  },
+
+  // 9 -------------------------------------------------------------------------------------
   final: {
     spawn: { x: -37.5, z: 8.5, yaw: -Math.PI / 2 },
     rules: { aisle: true, forklift: true },
     setup(ctx) {
       const tt = T.final, st = ctx.state, { M, world } = ctx;
-      fixtures(ctx);
+      fixtures(ctx, { walkers: false });
       world.forklift.start(ctx.cfg.forkSpeed);
       const pool = HUNT_SPOTS.filter((s) => ["gas", "cable", "oil", "stack", "hose", "hatch", "ext"].includes(s.id));
       st.haz = shuffle(pool.slice()).slice(0, 3); st.reported = 0;

@@ -12,9 +12,11 @@ const L = (en, ar) => ({ en, ar });
 
 // Difficulty tuning.
 export const DIFFICULTY = {
-  easy:   { craneSpeed: 1.6, forkSpeed: 2.4, evacSeconds: 150, huntSeconds: 210, hazards: 5, showArrow: true,  showDanger: true,  showMarkers: true },
-  normal: { craneSpeed: 2.4, forkSpeed: 3.2, evacSeconds: 110, huntSeconds: 160, hazards: 6, showArrow: true,  showDanger: false, showMarkers: true },
-  hard:   { craneSpeed: 3.2, forkSpeed: 4.2, evacSeconds: 80,  huntSeconds: 120, hazards: 7, showArrow: false, showDanger: false, showMarkers: false },
+  // sense: red screen edge toward nearby danger (the heartbeat sound plays on every level)
+  // talkSeconds: time to answer under pressure in "Under Pressure"
+  easy:   { craneSpeed: 1.6, forkSpeed: 2.4, evacSeconds: 150, huntSeconds: 210, hazards: 5, showArrow: true,  showDanger: true,  showMarkers: true,  sense: true,  talkSeconds: 16 },
+  normal: { craneSpeed: 2.4, forkSpeed: 3.2, evacSeconds: 110, huntSeconds: 160, hazards: 6, showArrow: true,  showDanger: false, showMarkers: true,  sense: true,  talkSeconds: 11 },
+  hard:   { craneSpeed: 3.2, forkSpeed: 4.2, evacSeconds: 80,  huntSeconds: 120, hazards: 7, showArrow: false, showDanger: false, showMarkers: false, sense: false, talkSeconds: 7 },
 };
 
 // Each mission is scored out of 100. Mistakes subtract points; a finished mission never
@@ -298,6 +300,74 @@ export const MISSION_TEXT = {
     ],
     learn: L("Raise the alarm first, evacuate away from smoke by the safest route, and report to the warden. Never go back inside.", "أطلق الإنذار أولاً، وأخلِ المكان بعيداً عن الدخان عبر أكثر الطرق أماناً، وأبلغ مسؤول الإخلاء. لا تعد إلى الداخل أبداً."),
   },
+  pressure: {
+    name: L("Under Pressure", "تحت الضغط"),
+    short: L("A supervisor wants a quick hot job done now. Use your stop-work authority, then do it safely.", "مشرف يريد عملاً ساخناً سريعاً الآن. استخدم صلاحية إيقاف العمل، ثم أنجزه بأمان."),
+    brief: L("The supervisor by the maintenance workshop has a job for you, and the shift is about to change. Listen, answer in time, and remember: every worker has the right and the duty to stop unsafe work.", "المشرف عند ورشة الصيانة لديه عمل لك، والوردية على وشك أن تتغير. استمع، وأجب في الوقت، وتذكّر: لكل عامل الحق والواجب في إيقاف أي عمل غير آمن."),
+    who: L("Shift supervisor", "مشرف الوردية"),
+    whoWatch: L("Colleague", "زميل"),
+    obj: {
+      talk: L("Talk to the supervisor at the workshop rail", "تحدّث مع المشرف عند حاجز الورشة"),
+      permit: L("Collect the hot-work permit", "استلم تصريح الأعمال الساخنة"),
+      drum: L("Move the open solvent drum to the flammables cabinet", "انقل برميل المذيبات المفتوح إلى خزانة المواد القابلة للاشتعال"),
+      ext: L("Bring a fire extinguisher to the job", "أحضر طفاية حريق إلى موقع العمل"),
+      watch: L("Ask a colleague to be the fire watch", "اطلب من زميل أن يكون مراقب الحريق"),
+      grind: L("Grind off the broken bracket", "اقطع الدعامة المكسورة بالجلّاخة"),
+      smoulder: L("Put out the smouldering spot", "أطفئ موضع الاشتعال الخامد"),
+      report: L("Report back to the supervisor", "ارجع إلى المشرف وأبلغه"),
+    },
+    r1: L("Good, you're here. That bracket on the rail is cracked. Grind it off now. Five minutes, no paperwork. The shift changes in ten.", "جيد أنك هنا. الدعامة على الحاجز مشقوقة. اقطعها بالجلّاخة الآن. خمس دقائق، بلا أوراق. الوردية تتغير بعد عشر دقائق."),
+    r1opts: [
+      { t: L("OK, I'll do it right away.", "حاضر، سأفعلها فوراً."), fx: "fireBurst",
+        r: L("Grinding throws sparks several metres. The open solvent drum right behind the rail caught them. Hot work without a permit and without clearing flammables is how fires start.", "الجلّاخة تقذف الشرر عدة أمتار. وصل الشرر إلى برميل المذيبات المفتوح خلف الحاجز. الأعمال الساخنة بلا تصريح وبلا إبعاد المواد القابلة للاشتعال هي بداية الحرائق.") },
+      { ok: true, t: L("This is hot work. It needs a hot-work permit and the area made safe first. I'm not starting until that's done.", "هذا عمل ساخن. يحتاج تصريح أعمال ساخنة وتأمين المكان أولاً. لن أبدأ قبل ذلك."),
+        r: L("You named the hazard and the rule, calmly and clearly.", "سمّيت الخطر والقاعدة بهدوء ووضوح.") },
+      { t: L("I'll do it quickly if you keep an eye out.", "سأفعلها بسرعة إذا راقبتَ أنت."), fx: "fireBurst",
+        r: L("An informal look-out is not a fire watch, and the flammables are still there. Sparks reached the solvent drum.", "المراقبة العابرة ليست مراقبة حريق، والمواد القابلة للاشتعال ما زالت في مكانها. وصل الشرر إلى برميل المذيبات.") },
+    ],
+    silence: L("You said nothing, so he took it as a yes and handed you the grinder. Silence is not a safe answer: if something is unsafe, say so.", "لم تقل شيئاً، ففهمها موافقة وناولك الجلّاخة. الصمت ليس جواباً آمناً: إذا كان الأمر غير آمن فقُلها."),
+    silenceT: L("Silence was taken as a yes", "الصمت فُهم كموافقة"),
+    r2: L("Look, I've done this a hundred times and nothing has ever happened. I'll take responsibility. Production is waiting.", "اسمع، فعلتها مئة مرة ولم يحدث شيء أبداً. أنا أتحمّل المسؤولية. الإنتاج ينتظر."),
+    r2opts: [
+      { t: L("If you take responsibility, then fine.", "إذا كنت تتحمّل المسؤولية، فلا بأس."), fx: "fireBurst",
+        r: L("Responsibility on paper does not stop sparks. If it goes wrong, you are the one standing next to them.", "المسؤولية على الورق لا توقف الشرر. إذا حدث خطأ فأنت من يقف بجانبه.") },
+      { ok: true, t: L("Nothing happening before doesn't make it safe. I'm using my stop-work authority. Let's do it properly: it only takes a few more minutes.", "عدم حدوث شيء من قبل لا يجعله آمناً. أستخدم صلاحية إيقاف العمل. لنفعلها بالطريقة الصحيحة: ستأخذ دقائق إضافية فقط."),
+        r: L("You stopped the job without blaming anyone, and offered the safe way forward.", "أوقفت العمل دون أن تلوم أحداً، وعرضت الطريق الآمن.") },
+      { t: L("Walk away without saying anything.", "أنصرف دون أن أقول شيئاً."), fx: "bad",
+        r: L("He simply asked someone else, who did it unsafely. Stopping unsafe work means saying stop, explaining why, and reporting it.", "طلبها ببساطة من شخص آخر فعلها بطريقة غير آمنة. إيقاف العمل غير الآمن يعني أن تقول توقّف، وتشرح السبب، وتبلّغ.") },
+    ],
+    r3: L("...All right. You're right. What do we need to do?", "...حسناً. معك حق. ماذا نحتاج أن نفعل؟"),
+    orderT: L("Put the hot-work steps in order", "رتّب خطوات الأعمال الساخنة"),
+    orderQ: L("Tap the steps in the order they must happen.", "اضغط الخطوات بالترتيب الذي يجب أن تحدث به."),
+    steps: [
+      L("Get a hot-work permit", "استلم تصريح أعمال ساخنة"),
+      L("Remove or cover anything flammable", "أبعِد أو غطِّ كل ما يقبل الاشتعال"),
+      L("Put a fire extinguisher at the job", "ضع طفاية حريق عند موقع العمل"),
+      L("Appoint a fire watch", "عيّن مراقب حريق"),
+      L("Do the hot work", "نفّذ العمل الساخن"),
+      L("Fire watch stays on after the work ends", "يبقى مراقب الحريق بعد انتهاء العمل"),
+    ],
+    orderLearn: L("Permit, clear, extinguisher, fire watch, work, then keep watching. Hidden smoulders can start long after the sparks stop.", "تصريح، إبعاد، طفاية، مراقب حريق، عمل، ثم مواصلة المراقبة. الاشتعال الخفي قد يبدأ بعد توقف الشرر بوقت طويل."),
+    okLine: L("Right. I'll sign the permit now. It's in the box by the workshop gate.", "تمام. سأوقّع التصريح الآن. ستجده في الصندوق عند بوابة الورشة."),
+    notYetT: L("Not ready for hot work", "المكان غير جاهز للعمل الساخن"),
+    notYetB: L("Before you grind, all of these must be in place:", "قبل أن تستخدم الجلّاخة، يجب أن يكون كل هذا جاهزاً:"),
+    drumFireT: L("Sparks reached the solvent", "وصل الشرر إلى المذيبات"),
+    drumFireB: L("The open solvent drum was still within reach of the sparks. Move flammables away before any hot work.", "برميل المذيبات المفتوح كان ما زال في متناول الشرر. أبعد المواد القابلة للاشتعال قبل أي عمل ساخن."),
+    watchLine: L("Sure, I'll be your fire watch. I'll stay with the job and keep watching after you finish.", "بالتأكيد، سأكون مراقب الحريق. سأبقى عند موقع العمل وأواصل المراقبة بعد أن تنتهي."),
+    grinding: L("Grinding… sparks are flying", "جارٍ القطع… الشرر يتطاير"),
+    afterGrind: L("Job done. The fire watch keeps watching…", "انتهى العمل. مراقب الحريق يواصل المراقبة…"),
+    smoke: L("Smoke! There's something smouldering behind the rail!", "دخان! هناك شيء يشتعل ببطء خلف الحاجز!"),
+    smoulderOut: L("Out. A spark had dropped into some dust behind the rail. That's exactly why we keep a fire watch after hot work.", "انطفأ. سقطت شرارة في غبار خلف الحاجز. لهذا بالضبط نُبقي مراقب الحريق بعد الأعمال الساخنة."),
+    smoulderLate: L("The fire watch put it out before it spread. Act fast next time: you had the extinguisher right there.", "أطفأه مراقب الحريق قبل أن ينتشر. تصرّف أسرع المرة القادمة: الطفاية كانت بجانبك."),
+    thanks: L("Thanks for stopping me earlier. I was rushing. I'll log it as a good catch so the whole crew learns from it.", "شكراً لأنك أوقفتني. كنت مستعجلاً. سأسجّلها كملاحظة سلامة إيجابية ليتعلّم منها الفريق كله."),
+    learn: L("Every worker can stop unsafe work. Say stop, explain why, offer the safe way and report it. For hot work: permit, clear flammables, extinguisher, fire watch, and keep watching after.", "كل عامل يستطيع إيقاف العمل غير الآمن. قل توقّف، واشرح السبب، واعرض الطريقة الآمنة، وأبلغ. وللأعمال الساخنة: تصريح، إبعاد المواد القابلة للاشتعال، طفاية، مراقب حريق، واستمرار المراقبة بعد العمل."),
+    cabinet: L("Flammables cabinet", "خزانة المواد القابلة للاشتعال"),
+    drumName: L("Open solvent drum", "برميل مذيبات مفتوح"),
+    bracket: L("Broken rail bracket", "دعامة الحاجز المكسورة"),
+    permitName: L("Hot-work permit box", "صندوق تصريح الأعمال الساخنة"),
+    placeExt: L("Place the extinguisher here", "ضع الطفاية هنا"),
+    extName: L("Fire extinguisher", "طفاية حريق"),
+  },
   final: {
     name: L("Final Safety Mission", "المهمة النهائية"),
     short: L("A full shift: PPE, a permit delivery through live traffic, hazards and an emergency.", "وردية كاملة: معدات الوقاية، وتوصيل تصريح عبر حركة نشطة، ومخاطر، وطوارئ."),
@@ -314,7 +384,37 @@ export const MISSION_TEXT = {
   },
 };
 
-export const MISSION_ORDER = ["induction", "ppe", "hunter", "machinery", "molten", "highrisk", "emergency", "final"];
+export const MISSION_ORDER = ["induction", "ppe", "hunter", "machinery", "molten", "highrisk", "pressure", "emergency", "final"];
+
+// Safety readiness profile: each competency is the average best score of its missions.
+export const COMPETENCIES = [
+  { id: "site", ...L("Site awareness", "الوعي بالموقع"), missions: ["induction"] },
+  { id: "ppe", ...L("PPE", "معدات الوقاية"), missions: ["ppe"] },
+  { id: "hazard", ...L("Hazard spotting", "اكتشاف المخاطر"), missions: ["hunter", "final"] },
+  { id: "traffic", ...L("Vehicles and cranes", "المركبات والرافعات"), missions: ["machinery"] },
+  { id: "molten", ...L("Molten metal", "المعدن المنصهر"), missions: ["molten"] },
+  { id: "highrisk", ...L("High-risk work", "الأعمال عالية الخطورة"), missions: ["highrisk"] },
+  { id: "culture", ...L("Speaking up", "ثقافة الإيقاف والإبلاغ"), missions: ["pressure"] },
+  { id: "emergency", ...L("Emergency response", "الاستجابة للطوارئ"), missions: ["emergency", "final"] },
+];
+export const RANKS = [
+  { min: 0, ...L("New starter", "متدرّب جديد") },
+  { min: 40, ...L("Hazard aware", "واعٍ بالمخاطر") },
+  { min: 70, ...L("Safe operator", "مشغّل آمن") },
+  { min: 90, ...L("Safety champion", "سفير السلامة") },
+];
+
+// What the incident replay says, under the violation title. Kept factual and non-graphic.
+export const REPLAY_TEXT = {
+  crane: L("Loads can slip from their slings without warning. A falling load gives nobody time to move.", "قد ينزلق الحمل من حباله دون إنذار. الحمل الساقط لا يترك لأحد وقتاً للابتعاد."),
+  forklift: L("A loaded forklift needs metres to stop, and from the seat the driver may not see you at all.", "الرافعة الشوكية المحمّلة تحتاج أمتاراً لتتوقف، وقد لا يراك السائق من مقعده أبداً."),
+  noLook: L("You stepped out without looking. The driver had less than a second to react.", "خرجت دون أن تنظر. كان أمام السائق أقل من ثانية ليتصرف."),
+  aisle: L("Away from the crossings, drivers do not expect anyone to be in the aisle.", "بعيداً عن نقاط العبور، لا يتوقع السائقون وجود أحد في الممر."),
+  fire: L("Heat and smoke can spread across a hall in seconds and cut off your way out.", "الحرارة والدخان قد ينتشران في الصالة خلال ثوانٍ ويقطعان طريق خروجك."),
+  restricted: L("Inside: very hot surfaces and strong magnetic fields. Only trained, authorised people go in.", "في الداخل: أسطح شديدة الحرارة ومجالات مغناطيسية قوية. لا يدخل إلا المدرّبون والمخوّلون."),
+  fall: L("Unclipped at an open edge, one slip is a fall. Your harness only works when it is clipped on.", "دون تثبيت الحزام عند حافة مفتوحة، زلّة واحدة تعني سقوطاً. الحزام لا يحميك إلا إذا كان مثبّتاً."),
+  default: L("This is the moment that cannot be undone. In the game you can rewind. At work you can't.", "هذه هي اللحظة التي لا يمكن التراجع عنها. في اللعبة تستطيع الرجوع، وفي العمل لا تستطيع."),
+};
 
 // ------------------------------------------------------------------------------------
 // Camera mode and AR scenarios (shared by ar.js and xr.js).

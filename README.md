@@ -4,10 +4,24 @@ A browser-based 3D safety training game set in a **fictional** aluminium smelter
 It does not represent any real company, facility or procedure. All training content is
 sample content and must be reviewed and approved by qualified HSE personnel before real use.
 
-Status: eight playable missions with a mission-select screen and saved progress, a detailed
-procedural 3D hall, a camera simulation mode for iPhone, iPad and Android, and a real WebXR AR mode
+Status (v6, "cinematic edition"): nine playable missions with a mission-select screen and saved
+progress, incident replays, cinematic post-processing, positional sound, a safety readiness profile
+with a printable certificate, a detailed procedural 3D hall, a camera simulation mode for iPhone, iPad and Android, and a real WebXR AR mode
 for Android phones that support it. All logic is tested in emulation; nothing is tested on real
 devices yet (see "What was tested").
+
+## New in v6
+
+| Feature | What it does |
+|---|---|
+| Incident replay | When you break a rule, time slows, the camera leaves your eyes and shows you from outside what was about to happen (a slipping crane load, a forklift that cannot stop, fire spreading, an unclipped fall). It freezes just before harm, so nothing graphic is shown, then rewinds you to safety before the lesson card. |
+| Under Pressure (new mission 7) | A shift supervisor pushes you to do hot work right away. You answer against a timer (silence counts as a yes), use your stop-work authority, put the hot-work steps in order, then do the job safely: permit, flammables removed, extinguisher, fire watch. A smoulder appears after the work, which is why the fire watch stays. |
+| Danger sense | A heartbeat speeds up and the screen edge turns red on the side the danger is on as you get close to a moving load, forklift, fire or restricted area (Guided and Standard; Expert keeps only the heartbeat). |
+| Living plant | Colleagues walk the walkways, give way to you and leave by the nearest exit when the alarm sounds. Synthesised positional sound: potline hum, forklift engine and reversing beeper, crane bell, crucible crackle, fire roar, footsteps, radio. |
+| Cinematic look | HDR rendering with bloom (molten metal, beacons, sparks and flames glow), filmic tone mapping, colour grade, vignette and grain. Each mission opens with a camera move and title card. On Low quality this is switched off for older phones. |
+| Safety readiness profile | Radar chart of eight competencies from your best scores, a readiness percentage and rank, your most common rule breaks, totals, and a printable completion certificate when all nine missions are done. Stored only in this browser. |
+
+Settings can turn incident replays, danger sense and opening shots on or off.
 
 ## What is in the game
 
@@ -23,8 +37,9 @@ best score, stars) is saved in the browser.
 | 4 | Moving Machinery | Carry a toolbox across a live aisle with a moving forklift and crane: stop at the line, look left and right, cross on the zebra, hand over, and come back the same way | Crossing without looking, being struck by the forklift, walking under the load |
 | 5 | Molten Metal Safety | Make the tapping bay safe before a crucible moves: close the water valve, take the wet tool to the drying rack, get the worker out of the line of fire, put on the face shield, then give the ready signal | Signalling early causes a steam explosion and fails the mission |
 | 6 | High-Risk Work | Permit, isolate the right conveyor (two isolators, positions swap each run), lock and tag, test start, climb the platform, clip on, clear the jam | Wrong isolator, no lock, skipping the test, going near the open edge unclipped; some of these fail the mission |
-| 7 | Emergency Response | A fire starts in a random place. Find and use the nearest call point, evacuate within the time while a smoke-exposure meter rises near the smoke, then report a missing colleague to the warden | Approaching the fire, too much smoke, running out of time |
-| 8 | Final Safety Mission | A full shift: PPE, collect a permit and take it to the control room through live traffic, report hazards on the way, then an emergency evacuation | All of the above |
+| 7 | Under Pressure | Answer a supervisor who wants unpermitted hot work, under a timer; put the hot-work steps in order; collect the permit, move the open solvent drum to the flammables cabinet, bring an extinguisher, appoint a fire watch, grind, put out the smoulder, report back | Agreeing, staying silent, walking away, grinding before the area is ready |
+| 8 | Emergency Response | A fire starts in a random place. Find and use the nearest call point, evacuate within the time while a smoke-exposure meter rises near the smoke, then report a missing colleague to the warden | Approaching the fire, too much smoke, running out of time |
+| 9 | Final Safety Mission | A full shift: PPE, collect a permit and take it to the control room through live traffic, report hazards on the way, then an emergency evacuation | All of the above |
 
 Rules that apply in every mission where they are switched on: walking under the crane load,
 entering the restricted area, walking in the vehicle aisle outside a crossing, getting in the
@@ -53,7 +68,10 @@ index.html            page shell and all screens
 css/app.css           styles, responsive layout, RTL support
 js/main.js            boot, WebGL check, menus, mission select, settings, AR mode picker
 js/game.js            engine: loop, safety rules, interaction, HUD, scoring, mission runner
-js/missions.js        the eight missions (setup and per-frame logic)
+js/missions.js        the nine missions (setup and per-frame logic)
+js/cinema.js          mission opening shots and the incident replay
+js/post.js            HDR bloom, tone mapping, grade, vignette, replay effects
+js/npc.js             walking colleagues and their evacuation
 js/content.js         ALL training text, hazards, difficulty and scoring (the file HSE reviews)
 js/world.js           procedural 3D potroom layout, crane, forklift, fire, lighting
 js/assets.js          procedural industrial models (pots, platform, rails, panels, workers…)
