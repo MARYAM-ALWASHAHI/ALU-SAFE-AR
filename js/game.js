@@ -223,6 +223,7 @@ export class Game {
     if (cine) this.cinema.update(dt);
     if (active && !this.ended) this.tick(dt);
     this.updateDanger(dt, active);
+    this.world.markerNear(this.camera.position.x, this.camera.position.z);
     this.updatePickMarkers();
     if (this.shake > 0) {
       this.shake -= dt;

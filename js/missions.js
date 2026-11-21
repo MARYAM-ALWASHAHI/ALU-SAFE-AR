@@ -225,7 +225,7 @@ function makeSparks(ctx) {
   const pos = new Float32Array(N * 3).fill(-99), col = new Float32Array(N * 3);
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  const mat = new THREE.PointsMaterial({ size: .09, map: glowSprite(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const mat = new THREE.PointsMaterial({ size: .06, map: glowSprite(), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; ctx.add(pts);
   const vel = new Float32Array(N * 3), life = new Float32Array(N), kind = new Uint8Array(N);
   let next = 0, acc = 0;

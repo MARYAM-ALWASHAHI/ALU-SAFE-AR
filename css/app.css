@@ -332,10 +332,12 @@ html[lang="ar"] #cine .cap small { letter-spacing: 0; font-size: 15px; }
 .profile-btn b { color: var(--teal-2); font-variant-numeric: tabular-nums; }
 
 /* profile */
-.pf-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: center; }
+.pf-top { display: grid; grid-template-columns: 1fr; gap: 6px; justify-items: center; text-align: center; }
+.pf-top .pf-score { justify-items: center; }
 @media (max-width: 620px) { .pf-top { grid-template-columns: 1fr; } }
-.pf-radar { width: 100%; max-width: 440px; justify-self: center; }
-.pf-radar text { font: 600 10.5px var(--font); fill: var(--silver); }
+.pf-radar { width: 100%; max-width: 440px; justify-self: center; direction: ltr; }
+.pf-radar text { unicode-bidi: plaintext; }
+.pf-radar text { font: 600 13px var(--font); fill: var(--silver); }
 .pf-score { display: grid; gap: 8px; justify-items: start; }
 .pf-score .big { font-size: 64px; font-weight: 800; line-height: 1; direction: ltr; }
 .pf-score .big small { font-size: 24px; color: var(--muted); }

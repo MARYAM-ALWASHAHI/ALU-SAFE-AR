@@ -344,6 +344,8 @@ export function buildWorld(scene, opts) {
     fire,
     carrier: { group: carrier, collider: carrierCollider },
     puddle, hose,
+    // hide the light column when the trainee stands in it (it would tint the whole view)
+    markerNear(x, z) { beamM.visible = Math.hypot(x - marker.position.x, z - marker.position.z) > 1.6; },
     setMarker(pos, visible) { marker.visible = !!(pos && visible); if (pos) marker.position.set(pos.x, pos.y || 0, pos.z); },
     setFire(on, spot = SPOTS.fires[0]) {
       Object.assign(fire, { x: spot.x, z: spot.z, y: spot.y, r: spot.r, on });

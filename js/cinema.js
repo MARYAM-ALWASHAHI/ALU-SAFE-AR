@@ -78,7 +78,18 @@ export class Cinema {
     // camera: to the side of the line between hazard and trainee, so both are in frame
     let ang = Math.atan2(ax - hz.x, az - hz.z);
     if (!isFinite(ang) || (Math.abs(ax - hz.x) + Math.abs(az - hz.z)) < .2) ang = yaw;
-    const side = ang + 1.15, R = kind === "fall" ? 5 : 6.2, H = kind === "fall" ? feet + 1.2 : feet + 3.1;
+    const R = kind === "fall" ? 5 : 6.2, H = kind === "fall" ? feet + 1.2 : feet + 3.1;
+    // pick a camera side with nothing solid between the camera and the trainee
+    const blocked = (a) => {
+      const cx = ax + Math.sin(a) * R, cz = az + Math.cos(a) * R;
+      if (cx < -39.2 || cx > 39.2 || cz < -14.2 || cz > 14.2) return true;
+      for (const c of g.world.colliders) {
+        if ((c.top ?? 99) < 1.4 || c.minX > 900) continue;
+        for (let k = .12; k < .9; k += .08) { const x = cx + (ax - cx) * k, z = cz + (az - cz) * k; if (x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ) return true; }
+      }
+      return false;
+    };
+    const side = ang + ([1.15, -1.15, .7, -.7, 1.7, -1.7, 2.4, -2.4].find((o) => !blocked(o + ang) && !blocked(o + ang + .35)) ?? 1.15);
     const camAt = (k) => {
       const a = side + k * .35;
       return _b.set(Math.max(-39.2, Math.min(39.2, ax + Math.sin(a) * R)), H, Math.max(-14.2, Math.min(14.2, az + Math.cos(a) * R)));
