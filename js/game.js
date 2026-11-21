@@ -1,18 +1,18 @@
 // Game engine: renderer, loop, first-person player, interaction, safety rules, HUD and the
 // mission runner. Mission logic lives in missions.js and talks to the engine through `ctx`.
-import * as THREE from "./vendor/three.module.min.js?v=6";
-import { buildWorld, ZONES } from "./world.js?v=6";
-import { disposeTextures } from "./textures.js?v=6";
-import { Player } from "./player.js?v=6";
-import { MISSIONS } from "./missions.js?v=6";
-import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=6";
-import { t, tx, getLang } from "./i18n.js?v=6";
-import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=6";
-import { sfx, startAlarm, stopAlarm, ambience } from "./audio.js?v=6";
-import { PostFX } from "./post.js?v=6";
-import { Cinema } from "./cinema.js?v=6";
-import { crowd } from "./npc.js?v=6";
-import { store } from "./storage.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
+import { buildWorld, ZONES } from "./world.js?v=7";
+import { disposeTextures } from "./textures.js?v=7";
+import { Player } from "./player.js?v=7";
+import { MISSIONS } from "./missions.js?v=7";
+import { MISSION_TEXT, MISSION_ORDER, PPE_ITEMS, VIOLATIONS, DIFFICULTY, SCORING, CONTENT_META } from "./content.js?v=7";
+import { t, tx, getLang } from "./i18n.js?v=7";
+import { $, icon, ppeArt, openModal, closeModal, modalOpen, toast, flash, fmtTime, showScreen } from "./ui.js?v=7";
+import { sfx, startAlarm, stopAlarm, ambience } from "./audio.js?v=7";
+import { PostFX } from "./post.js?v=7";
+import { Cinema } from "./cinema.js?v=7";
+import { crowd } from "./npc.js?v=7";
+import { store } from "./storage.js?v=7";
 
 const QUALITY = {
   low: { ratio: 1, shadows: false },

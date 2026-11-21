@@ -2,12 +2,12 @@
 // The incident replay is the heart of v6: when the trainee breaks a rule, time slows, the
 // camera leaves their eyes, shows them from outside and plays what was about to happen. It
 // freezes just before the moment of harm (nothing graphic is shown), then rewinds to safety.
-import * as THREE from "./vendor/three.module.min.js?v=6";
-import * as A from "./assets.js?v=6";
-import { $ } from "./ui.js?v=6";
-import { sfx, setMuffle } from "./audio.js?v=6";
-import { t, tx } from "./i18n.js?v=6";
-import { VIOLATIONS, REPLAY_TEXT } from "./content.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
+import * as A from "./assets.js?v=7";
+import { $ } from "./ui.js?v=7";
+import { sfx, setMuffle } from "./audio.js?v=7";
+import { t, tx } from "./i18n.js?v=7";
+import { VIOLATIONS, REPLAY_TEXT } from "./content.js?v=7";
 
 const ease = (k) => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
 const clamp01 = (k) => Math.max(0, Math.min(1, k));

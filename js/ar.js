@@ -2,11 +2,11 @@
 // Works in iOS/iPadOS Safari (no WebXR needed): the view follows the device's orientation
 // sensors and a simple step counter moves you closer. It does not detect floors or real
 // objects, and the UI says so.
-import * as THREE from "./vendor/three.module.min.js?v=6";
-import { AR_FIRE, AR_CRANE, AR_MOLTEN, AR_WALKWAY } from "./content.js?v=6";
-import { t, tx, getLang } from "./i18n.js?v=6";
-import { icon, openModal, closeModal, modalOpen, toast, flash } from "./ui.js?v=6";
-import { sfx } from "./audio.js?v=6";
+import * as THREE from "./vendor/three.module.min.js?v=7";
+import { AR_FIRE, AR_CRANE, AR_MOLTEN, AR_WALKWAY } from "./content.js?v=7";
+import { t, tx, getLang } from "./i18n.js?v=7";
+import { icon, openModal, closeModal, modalOpen, toast, flash } from "./ui.js?v=7";
+import { sfx } from "./audio.js?v=7";
 
 const EYE = 1.4;                      // phone height above the floor, metres
 const START_D = [3.6, 4.6, 4.2, 5];   // starting distances
