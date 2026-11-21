@@ -2,10 +2,10 @@
 // on phones. Units are metres. The hall runs along x; the potline is on the north side (-z),
 // the crane and vehicle aisle is in the middle, and the pedestrian walkway and maintenance
 // workshop are on the south side (+z).
-import * as THREE from "./vendor/three.module.min.js?v=5";
-import { RoomEnvironment } from "./vendor/RoomEnvironment.js?v=5";
-import { concrete, stripes, glowSprite, shaftTex, canvasTex } from "./textures.js?v=5";
-import * as A from "./assets.js?v=5";
+import * as THREE from "./vendor/three.module.min.js?v=6";
+import { RoomEnvironment } from "./vendor/RoomEnvironment.js?v=6";
+import { concrete, stripes, glowSprite, shaftTex, canvasTex } from "./textures.js?v=6";
+import * as A from "./assets.js?v=6";
 
 export const HALL = { minX: -40, maxX: 40, minZ: -15, maxZ: 15, height: 15 };
 export const ZONES = {
@@ -344,6 +344,8 @@ export function buildWorld(scene, opts) {
     fire,
     carrier: { group: carrier, collider: carrierCollider },
     puddle, hose,
+    // hide the light column when the trainee stands in it (it would tint the whole view)
+    markerNear(x, z) { beamM.visible = Math.hypot(x - marker.position.x, z - marker.position.z) > 1.6; },
     setMarker(pos, visible) { marker.visible = !!(pos && visible); if (pos) marker.position.set(pos.x, pos.y || 0, pos.z); },
     setFire(on, spot = SPOTS.fires[0]) {
       Object.assign(fire, { x: spot.x, z: spot.z, y: spot.y, r: spot.r, on });

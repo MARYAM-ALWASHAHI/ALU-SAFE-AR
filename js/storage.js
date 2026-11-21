@@ -13,7 +13,8 @@ class LocalStore {
   }
   getSettings() {
     const s = this._read().settings || {};
-    return { lang: s.lang || null, difficulty: s.difficulty || "easy", quality: s.quality || null, muted: !!s.muted };
+    return { lang: s.lang || null, difficulty: s.difficulty || "easy", quality: s.quality || null, muted: !!s.muted,
+      replay: s.replay !== false, sense: s.sense !== false, cinematics: s.cinematics !== false };
   }
   saveSettings(settings) { const d = this._read(); d.settings = settings; this._write(d); }
   getBest(difficulty) { return (this._read().best || {})[difficulty] ?? null; }
@@ -26,7 +27,19 @@ class LocalStore {
     p.byDiff[difficulty] = Math.max(p.byDiff[difficulty] || 0, score);
     d.progress[id] = p; this._write(d);
   }
-  resetProgress() { const d = this._read(); delete d.progress; this._write(d); }
+  resetProgress() { const d = this._read(); delete d.progress; delete d.stats; this._write(d); }
+  // Anonymous training statistics for the readiness profile: runs, mistakes and rule breaks by kind.
+  recordStats(id, { kinds = {}, mistakes = 0, seconds = 0 }) {
+    const d = this._read(); d.stats = d.stats || { runs: 0, mistakes: 0, seconds: 0, kinds: {} };
+    const st = d.stats;
+    st.runs++; st.mistakes += mistakes; st.seconds += seconds;
+    for (const k in kinds) st.kinds[k] = (st.kinds[k] || 0) + kinds[k];
+    this._write(d);
+  }
+  getStats() { return this._read().stats || { runs: 0, mistakes: 0, seconds: 0, kinds: {} }; }
+  // Name printed on the certificate. Stays in this browser only.
+  getName() { return this._read().name || ""; }
+  setName(n) { const d = this._read(); d.name = String(n).slice(0, 60); this._write(d); }
   // Called once per finished run. A server version would also record the attempt.
   recordRun({ difficulty, score }) {
     const d = this._read(); d.best = d.best || {};
